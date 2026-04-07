@@ -6,11 +6,13 @@ add_definitions(-DUNICODE -D_UNICODE -DWIN32_LEAN_AND_MEAN)
 set(PROJECT_HEADERS
 	include/command.h
 	include/network.h
+	include/process.h
 )
 
 set(PROJECT_SOURCES
 	src/command.c
 	src/network.c
+	src/process.c
 )
 
 
