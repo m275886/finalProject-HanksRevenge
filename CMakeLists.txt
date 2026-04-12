@@ -1,18 +1,26 @@
 cmake_minimum_required(VERSION 3.10)
-project(lab2 C)
+project(Hanks_Revenge C)
 
 add_definitions(-DUNICODE -D_UNICODE -DWIN32_LEAN_AND_MEAN)
 
 set(PROJECT_HEADERS
 	include/command.h
+	include/error.h	
+	include/generated_commands.h
 	include/network.h
 	include/process.h
+	include/system.h
+	include/debug.h 
+	include/exports.h 
+	include/security.h
+	include/protocol.h
 )
 
 set(PROJECT_SOURCES
 	src/command.c
 	src/network.c
 	src/process.c
+	src/protocol.c
 )
 
 
