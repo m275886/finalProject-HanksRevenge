@@ -11,6 +11,15 @@ Intial commands -> Audrey
 This project is a Windows implant with a custom C2 server, an operator client, and a custom communications protocol carried over DNS.  
 The implant supports both standard operator tasks and more advanced post-exploitation capabilities. In addition to implementing the technical functionality, our team followed disciplined engineering practices throughout the project, including milestone planning, pull requests, code review, issue tracking, and branch-based development.
 
+## Initial Protocol Summary (M1)
+
+## Architecture summary
+
+## Build steps
+
+## Run steps
+
+
 ## Supported Commands
 
 | Command | Location | Status | Notes |
@@ -25,3 +34,11 @@ The implant supports both standard operator tasks and more advanced post-exploit
 | `impersonate-token` | Implant + Python client | Implemented | Impersonates the token of given pid |
 | `whoami` | Implant + Python client | Implemented | Displays the current security context of the implant |
 | `hostname` | Implant + Python client | Implemented | Displays the host or computer name |
+
+## Persistence method
+
+## Encryption approach
+
+## Testing workflow
+
+## Cleanup or uninstall behavior
