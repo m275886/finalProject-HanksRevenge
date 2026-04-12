@@ -5,6 +5,7 @@
 #include "error.h"
 #include "generated_commands.h"
 #include "security.h"
+#include "system.h"
 #include "exports.h"
 
 typedef DWORD (*CommandFunction)(
@@ -84,7 +85,27 @@ DWORD CmdEnablePrivilege(
 	DWORD* responseLen
 );
 
+/**
+* @brief 
+*/
 DWORD CmdDisablePrivilege(
+	DWORD dataLen,
+	CONST PBYTE data,
+	PBYTE* responseData,
+	DWORD* responseLen
+);
+
+/**
+* @brief 
+*/
+DWORD CmdHostname(
+	DWORD dataLen,
+	CONST PBYTE data,
+	PBYTE* responseData,
+	DWORD* responseLen
+);
+
+DWORD CmdWhoami(
 	DWORD dataLen,
 	CONST PBYTE data,
 	PBYTE* responseData,
