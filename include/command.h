@@ -36,7 +36,7 @@ extern CONST COMMAND_MAP G_CommandTable[];
  *
  * @return A numeric error or success code.
  */
-DWORD CmdCurrentToken(
+DWORD CmdInspectToken(
 	DWORD dataLen,
 	CONST PBYTE data,
 	PBYTE* responseData,

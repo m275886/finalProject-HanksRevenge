@@ -22,7 +22,8 @@
 #define PRIV_ENABLED_PREVIOUSLY 1
 #define PRIV_DISABLED_PREVIOUSLY 0
 #define PRIV_ENABLE_SUCCESS 1
-#define PRIV_ENABLE_FAILED 0
+#define PRIV_DISABLE_SUCCESS 1
+
 
 typedef struct _TOKEN_SUMMARY_HEADER
 {
@@ -101,39 +102,6 @@ DWORD BuildTokenImpersonationResponseFromToken(
 DWORD BuildCurrentTokenSummaryResponse(PBYTE* responseData, DWORD* responseLen);
 
 /**
- * @brief Builds a response buffer that summarizes a target process token.
- *
- * The intended response format mirrors BuildCurrentTokenSummaryResponse so the
- * Python client can parse local and remote token summaries consistently.
- *
- * @param processId The target process identifier.
- * @param responseData Receives an optional heap-allocated response buffer.
- * @param responseLen Receives the response buffer length in bytes.
- *
- * @return A numeric error or success code.
- */
-DWORD BuildProcessTokenSummaryResponse(
-	DWORD processId,
-	PBYTE* responseData,
-	DWORD* responseLen
-);
-
-/**
- * @brief Builds a response buffer containing all privileges on a target token.
- *
- * @param processId The target process identifier.
- * @param responseData Receives an optional heap-allocated response buffer.
- * @param responseLen Receives the response buffer length in bytes.
- *
- * @return A numeric error or success code.
- */
-DWORD BuildTokenPrivilegesResponse(
-	DWORD processId,
-	PBYTE* responseData,
-	DWORD* responseLen
-);
-
-/**
  * @brief Attempts to impersonate the token of a target process.
  *
  * @param processId The target process identifier.
@@ -151,17 +119,11 @@ DWORD ImpersonateProcessToken(DWORD processId);
  */
 DWORD EnableCurrentTokenPrivilege(PCWSTR privilegeName);
 
-
 /**
-* @brief Builds a response buffer that summarizes a target process token's privileges.
-* 
-* @param processId The target process identifier.
-* @param responseData Receives an optional heap-allocated response buffer.
-* @param responseLen Receives the response buffer length in bytes.
-* 
-* @return A numeric error or success code.s
-*/
-DWORD BuildTokenStatsResponse(
-	DWORD processId,
-	PBYTE* responseData,
-	DWORD* responseLen);
+ * @brief Attempts to disable a privilege on the current process token.
+ *
+ * @param privilegeName The privilege name to enable.
+ *
+ * @return A numeric error or success code.
+ */
+DWORD DisableCurrentTokenPrivilege(PCWSTR privilegeName);
