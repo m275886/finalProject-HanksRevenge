@@ -1,0 +1,7 @@
+const_name,id,command_name,usage,description
+CMD_HOSTNAME,1,hostname,hostname,Return the host or computer name
+CMD_INSPECT_TOKEN,2,inspect-token,inspect-token,Return a summary of the current process token
+CMD_WHOAMI,3,whoami,whoami,Display the current security context of the implant
+CMD_IMPERSONATE_TOKEN,5,impersonate-token,impersonate-token <pid>,Attempt to impersonate the token of a target process
+CMD_ENABLE_PRIVILEGE,6,enable-privilege,enable-privilege <name>,Attempt to enable a privilege on the current process token
+CMD_DISABLE_PRIVILEGE,7,disable-privilege,disable-privilege <name>,Attempt to disable a privilege on the current process token
