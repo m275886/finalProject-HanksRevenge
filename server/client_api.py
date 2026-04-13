@@ -1,7 +1,7 @@
 import socket
 import struct
 
-from generated_commands import CMD_NAMES
+from commands import CMD_NAMES
 from protocol import (
     DEFAULT_AGENT_ID,
     MSG_OPERATOR_GET_RESULT,

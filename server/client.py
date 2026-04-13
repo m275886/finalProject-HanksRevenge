@@ -1,4 +1,4 @@
-from generated_commands import CMD_IDS
+from commands import CMD_IDS
 
 from client_api import (
     check_task_result,
