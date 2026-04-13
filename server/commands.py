@@ -1,4 +1,3 @@
-"""
 CMD_KILLIMPLANT = 1
 CMD_CURRENT_TOKEN = 2
 CMD_PROCESS_TOKEN = 3
@@ -17,4 +16,3 @@ COMMAND_SPECS = [
 
 CMD_NAMES = {spec['id']: spec['name'] for spec in COMMAND_SPECS}
 CMD_IDS = {spec['name']: spec['id'] for spec in COMMAND_SPECS}
-"""
