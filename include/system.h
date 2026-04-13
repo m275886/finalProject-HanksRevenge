@@ -1,6 +1,7 @@
 #pragma once
 #include <windows.h>
 #include "error.h"
+#include "debug.h"
 #include <Lmcons.h>
 #include <stdlib.h>
 
