@@ -147,6 +147,58 @@ def display_killimplant(payload):
         print("  Implant termination requested.")
 
 
+
+
+def display_disable_privilege(payload):
+    """
+    TODO: Students implement this display handler.
+
+    The implant should return enough information for the operator to tell
+    whether the requested privilege was enabled successfully.
+
+    Your lab instructions should define the exact payload layout.
+    """
+    print("[TODO] Parse and display the enable-privilege response.")
+    print(f"  payload_length : {len(payload)}")
+    if payload:
+        print(f"  payload_hex    : {payload.hex()}")
+
+
+def display_Host_Name(payload):
+    """
+    TODO: Students implement this display handler.
+
+    The implant should return enough information for the operator to tell
+    whether the requested privilege was enabled successfully.
+
+    Your lab instructions should define the exact payload layout.
+    """
+    print("[TODO] Parse and display the enable-privilege response.")
+    print(f"  payload_length : {len(payload)}")
+    if payload:
+        print(f"  payload_hex    : {payload.hex()}")
+
+
+
+
+def display_WHOAMI(payload):
+    """
+    TODO: Students implement this display handler.
+
+    The implant should return enough information for the operator to tell
+    whether the requested privilege was enabled successfully.
+
+    Your lab instructions should define the exact payload layout.
+    """
+    print("[TODO] Parse and display the enable-privilege response.")
+    print(f"  payload_length : {len(payload)}")
+    if payload:
+        print(f"  payload_hex    : {payload.hex()}")
+        
+
+
+
+#### UPDATE THIS FOR COMMANDS
 DISPLAY_HANDLERS = {
     CMD_IDS["current-token"]: display_current_token,
     CMD_IDS["process-token"]: display_process_token,
@@ -154,6 +206,9 @@ DISPLAY_HANDLERS = {
     CMD_IDS["impersonate-token"]: display_impersonate_token,
     CMD_IDS["enable-privilege"]: display_enable_privilege,
     CMD_IDS["killimplant"]: display_killimplant,
+    CMD_ID5["disable-privilege"] : display_disable_privilege,
+    CMD_ID5["Host-Name"] : display_Host_name,
+    CMD_ID5["WHOAMI"] : display_WHOAMI
 }
 
 
