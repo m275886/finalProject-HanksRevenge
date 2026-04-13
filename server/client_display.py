@@ -1,7 +1,7 @@
 import struct
 
-from generated_commands import CMD_IDS, CMD_NAMES, COMMAND_SPECS
-from generated_errors import ERROR_MESSAGES
+from commands import CMD_IDS, CMD_NAMES, COMMAND_SPECS
+from errors import ERROR_MESSAGES
 
 TOKEN_SUMMARY_HEADER_SIZE = 16
 REFERENCE_COMMANDS = {"current-token", "killimplant"}
@@ -92,7 +92,7 @@ def display_process_token(payload):
         print(f"  payload_hex    : {payload.hex()}")
 
 
-def display_token_privileges(payload):
+def display_inspect_token(payload):
     """
     TODO: Students implement this display handler.
 
@@ -102,10 +102,41 @@ def display_token_privileges(payload):
     Your lab instructions should define how each privilege entry is encoded and
     how the privileges must be displayed.
     """
-    print("[TODO] Parse and display the token-privileges response.")
-    print(f"  payload_length : {len(payload)}")
-    if payload:
-        print(f"  payload_hex    : {payload.hex()}")
+    if len(payload) < 8:
+        print(f"[!] process-privileges payload too short: {len(payload)} bytes")
+        return
+    
+    SE_PRIVILEGE_ENABLED = 0x00000002
+    SE_PRIVILEGE_ENABLED_BY_DEFAULT = 0x00000001
+
+    #get the PID and privilege count
+    target_pid, priv_count = struct.unpack("<II", payload[:8])
+    
+    print(f"  pid            : {target_pid}")
+    print(f"  privileges     :")
+    offset = 8
+
+    for _ in range(priv_count):
+        
+        #get state and name length
+        state, name_length = struct.unpack("<II", payload[offset:offset+8])
+        offset += 8
+
+        #get string of name
+        raw_string = payload[offset : offset + name_length]
+        priv_name = raw_string.decode("utf-16le").rstrip("\x00")
+        offset += name_length
+        
+        #translate the raw integer attributes into text
+        status = "disabled"
+        if state & SE_PRIVILEGE_ENABLED:
+            status = "enabled"
+        elif state & SE_PRIVILEGE_ENABLED_BY_DEFAULT:
+            status = "enabled-by-default"
+            
+        print(f"  {priv_name:<40} {status}")
+
+
 
 
 def display_impersonate_token(payload):
@@ -118,10 +149,66 @@ def display_impersonate_token(payload):
 
     Your lab instructions should define the exact payload layout.
     """
-    print("[TODO] Parse and display the impersonate-token response.")
-    print(f"  payload_length : {len(payload)}")
-    if payload:
-        print(f"  payload_hex    : {payload.hex()}")
+    if len(payload) < 4:
+        print(f"[!] process-token payload too short to contain PID: {len(payload)} bytes")
+        return
+
+    # get pid
+    target_pid = struct.unpack("<I", payload[:4])[0]
+    print(f"  pid                    : {target_pid}")
+
+    # remove pid part
+    summary_payload = payload[4:]
+    
+    TOKEN_SUMMARY_HEADER_SIZE = 8
+
+    if len(summary_payload) < TOKEN_SUMMARY_HEADER_SIZE:
+        print(f"[!] impersonation-token summary too short: {len(summary_payload)} bytes")
+        return
+
+    impersonated, user_name_length = struct.unpack(
+        "<II",
+        summary_payload[:TOKEN_SUMMARY_HEADER_SIZE],
+    )
+    
+    total_length = TOKEN_SUMMARY_HEADER_SIZE + user_name_length
+    if len(summary_payload) < total_length:
+        print(f"[!] process-token payload incomplete: {len(summary_payload)} bytes")
+        return
+
+    user_name = summary_payload[
+        TOKEN_SUMMARY_HEADER_SIZE:TOKEN_SUMMARY_HEADER_SIZE + user_name_length
+    ].decode("utf-16le").rstrip("\x00")
+
+    print(f"  impersonation_result   : {'success' if impersonated else 'failed'}")
+    print(f"  username               : {user_name}")
+
+
+def display_enable_privilege(payload):
+    """
+    TODO: Students implement this display handler.
+
+    The implant should return enough information for the operator to tell
+    whether the requested privilege was enabled successfully.
+
+    Your lab instructions should define the exact payload layout.
+    """
+    offset = 0
+    #get state and name length
+    state, prev, name_length = struct.unpack("<III", payload[offset:offset+12])
+    offset += 12
+
+    #get string of name
+    raw_string = payload[offset : offset + name_length]
+    priv_name = raw_string.decode("utf-16le").rstrip("\x00")
+    offset += name_length
+
+    #print results
+    print(f"  privilege          : {priv_name}")
+    print(f"  enable_result      : {'success' if state else 'failed'}")  
+    print(f"  previously_enabled : {'yes' if prev else 'no'}")
+
+
 
 
 def display_enable_privilege(payload):
@@ -202,13 +289,13 @@ def display_WHOAMI(payload):
 DISPLAY_HANDLERS = {
     CMD_IDS["current-token"]: display_current_token,
     CMD_IDS["process-token"]: display_process_token,
-    CMD_IDS["token-privileges"]: display_token_privileges,
+    CMD_IDS["inspect-token"]: display_inspect_token,
     CMD_IDS["impersonate-token"]: display_impersonate_token,
     CMD_IDS["enable-privilege"]: display_enable_privilege,
     CMD_IDS["killimplant"]: display_killimplant,
-    CMD_ID5["disable-privilege"] : display_disable_privilege,
-    CMD_ID5["Host-Name"] : display_Host_name,
-    CMD_ID5["WHOAMI"] : display_WHOAMI
+    CMD_IDS["disable-privilege"] : display_disable_privilege,
+    CMD_IDS["Host-Name"] : display_Host_Name,
+    CMD_IDS["WHOAMI"] : display_WHOAMI
 }
 
 
