@@ -24,12 +24,19 @@ set(PROJECT_SOURCES
 )
 
 
+add_library(lab3 SHARED ${PROJECT_SOURCES} ${PROJECT_HEADERS})
+add_dependencies(lab3 generate_shared_defs)
 
-add_executable(lab2 ${PROJECT_SOURCES} ${PROJECT_HEADERS})
+target_include_directories(lab3 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-target_include_directories(lab2 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(lab3 ntdll advapi32 kernel32 ws2_32)
 
-target_link_libraries(lab2 advapi32 kernel32 ws2_32 ntdll)
+target_compile_options(lab3 PRIVATE /W4 /WX)
 
+add_executable(lab3_host host/lab3_host.c)
 
-target_compile_options(lab2 PRIVATE /W4 /WX)
+target_include_directories(lab3_host PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+target_link_libraries(lab3_host kernel32)
+
+target_compile_options(lab3_host PRIVATE /W4 /WX)
