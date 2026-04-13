@@ -1,7 +1,7 @@
 # finalProject-HanksRevenge
 
 ## Team Roles
-Protocol: DNS, written in Python -> Evan & Daniel 
+Protocol: DNS, written in Python -> Evan & Daniel   
 Implant:  
 Beacon callback -> Shawn  
 Intial commands -> Audrey  
