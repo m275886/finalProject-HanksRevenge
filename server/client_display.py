@@ -209,23 +209,6 @@ def display_enable_privilege(payload):
     print(f"  previously_enabled : {'yes' if prev else 'no'}")
 
 
-
-
-def display_enable_privilege(payload):
-    """
-    TODO: Students implement this display handler.
-
-    The implant should return enough information for the operator to tell
-    whether the requested privilege was enabled successfully.
-
-    Your lab instructions should define the exact payload layout.
-    """
-    print("[TODO] Parse and display the enable-privilege response.")
-    print(f"  payload_length : {len(payload)}")
-    if payload:
-        print(f"  payload_hex    : {payload.hex()}")
-
-
 def display_killimplant(payload):
     """Display the killimplant result."""
     if payload:
@@ -234,53 +217,62 @@ def display_killimplant(payload):
         print("  Implant termination requested.")
 
 
-
-
 def display_disable_privilege(payload):
     """
-    TODO: Students implement this display handler.
+    Display handler for the disable privilege command.
 
     The implant should return enough information for the operator to tell
-    whether the requested privilege was enabled successfully.
-
-    Your lab instructions should define the exact payload layout.
+    whether the requested privilege was disabled successfully.
     """
-    print("[TODO] Parse and display the enable-privilege response.")
-    print(f"  payload_length : {len(payload)}")
-    if payload:
-        print(f"  payload_hex    : {payload.hex()}")
+    offset = 0
+    #get state and name length
+    state, prev, name_length = struct.unpack("<III", payload[offset:offset+12])
+    offset += 12
+
+    #get string of name
+    raw_string = payload[offset : offset + name_length]
+    priv_name = raw_string.decode("utf-16le").rstrip("\x00")
+    offset += name_length
+
+    #print results
+    print(f"  privilege          : {priv_name}")
+    print(f"  disable_result     : {'success' if state else 'failed'}")  
+    print(f"  previously_enabled : {'yes' if prev else 'no'}")
+
 
 
 def display_Host_Name(payload):
     """
-    TODO: Students implement this display handler.
-
-    The implant should return enough information for the operator to tell
-    whether the requested privilege was enabled successfully.
-
-    Your lab instructions should define the exact payload layout.
+    Display handler for the hostname command.
+    
+    The implant returns the raw UTF-16LE string of the computer's name.
     """
-    print("[TODO] Parse and display the enable-privilege response.")
-    print(f"  payload_length : {len(payload)}")
-    if payload:
-        print(f"  payload_hex    : {payload.hex()}")
+    # Get string of computer name
+    computer_name = payload.decode("utf-16le").rstrip("\x00")
+
+    # Print results
+    print(f"  hostname           : {computer_name}")
 
 
 
 
 def display_WHOAMI(payload):
     """
-    TODO: Students implement this display handler.
-
-    The implant should return enough information for the operator to tell
-    whether the requested privilege was enabled successfully.
-
-    Your lab instructions should define the exact payload layout.
+    Display handler for the whoami command.
+    
+    The implant returns a 4-byte header indicating admin status, 
+    followed by the UTF-16LE string of the username.
     """
-    print("[TODO] Parse and display the enable-privilege response.")
-    print(f"  payload_length : {len(payload)}")
-    if payload:
-        print(f"  payload_hex    : {payload.hex()}")
+    # Get admin status from the first 4 bytes
+    is_admin = struct.unpack("<I", payload[:4])[0]
+    
+    # Get string of username from the remaining bytes
+    username = payload[4:].decode("utf-16le").rstrip("\x00")
+
+    # Print results
+    print(f"  username           : {username}")
+    print(f"  is_admin           : {'yes' if is_admin else 'no'}")
+
         
 
 
@@ -294,8 +286,8 @@ DISPLAY_HANDLERS = {
     CMD_IDS["enable-privilege"]: display_enable_privilege,
     CMD_IDS["killimplant"]: display_killimplant,
     CMD_IDS["disable-privilege"] : display_disable_privilege,
-    CMD_IDS["Host-Name"] : display_Host_Name,
-    CMD_IDS["WHOAMI"] : display_WHOAMI
+    CMD_IDS["hostname"] : display_Host_Name,
+    CMD_IDS["whoami"] : display_WHOAMI
 }
 
 
