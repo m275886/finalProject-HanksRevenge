@@ -7,6 +7,7 @@ set(PROJECT_HEADERS
 	include/command.h
 	include/error.h	
 	include/generated_commands.h
+	include/generated_errors.h
 	include/network.h
 	include/process.h
 	include/system.h
@@ -14,6 +15,8 @@ set(PROJECT_HEADERS
 	include/exports.h 
 	include/security.h
 	include/protocol.h
+	include/system.h
+	include/exports.h
 )
 
 set(PROJECT_SOURCES
@@ -21,6 +24,8 @@ set(PROJECT_SOURCES
 	src/network.c
 	src/process.c
 	src/protocol.c
+	src/security.c
+	src/system.c
 )
 
 

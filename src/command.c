@@ -197,7 +197,8 @@ DWORD CmdDisablePrivilege(
 	status = ConvertUtf8ToWideString(dataLen, data, &privilegeName);
 	if (status != NO_ERROR)
 	{
-		return status;
+		goto cleanup;
+		
 	}
 
 	// check if the privilege is currently enabled, and save that state
@@ -274,7 +275,7 @@ DWORD CmdHostname(
 	*responseLen = compBytes;
 
 cleanup:
-	HANDLE hHeap = GetProcessHeap();
+	
 	if (sysInfo.computerName) ImplantHeapFree(sysInfo.computerName);
 	if (sysInfo.userName) ImplantHeapFree(sysInfo.userName);
 	if (sysInfo.architecture) ImplantHeapFree(sysInfo.architecture);
@@ -325,7 +326,7 @@ DWORD CmdWhoami(
 	*responseLen = totalLength;
 
 cleanup:
-	HANDLE hHeap = GetProcessHeap();
+	
 	if (sysInfo.computerName) ImplantHeapFree(sysInfo.computerName);
 	if (sysInfo.userName) ImplantHeapFree(sysInfo.userName);
 	if (sysInfo.architecture) ImplantHeapFree(sysInfo.architecture);
