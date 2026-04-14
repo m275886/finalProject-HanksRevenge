@@ -20,7 +20,7 @@ int wmain(int argc, wchar_t* argv[])
 	HankInitializeFunction hankInitialize = NULL;
 	HankStartFunction hankStart = NULL;
 	HankStopFunction hankStop = NULL;
-	PCWSTR dllPath = L"hank.dll";
+	PCWSTR dllPath = L"Hanks_Revenge.dll";
 	PCWSTR c2Host = L"127.0.0.1";
 	PCWSTR c2Port = L"9001";
 

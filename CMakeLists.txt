@@ -26,6 +26,8 @@ set(PROJECT_SOURCES
 	src/protocol.c
 	src/security.c
 	src/system.c
+	src/debug.c
+	src/exports.c
 )
 
 
