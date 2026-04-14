@@ -16,7 +16,13 @@ The implant supports both standard operator tasks and more advanced post-exploit
 ## Architecture summary
 
 ## Build steps
-
+Using Cmake
+1: First run `mkdir build` 
+2: `cd build`
+3: `cmake ..`
+4: `cmake --build . --config Debug`
+5: start `client.py` and `server.py` from the server directory
+6: Run the corresponding implant executable
 ## Run steps
 
 
