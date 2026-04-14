@@ -12,6 +12,11 @@ CONST COMMAND_MAP G_CommandTable[] = {
 	{ CMD_WHOAMI, CmdWhoami}
 
 
+	
+	
+	
+	
+
 };
 
 /**
