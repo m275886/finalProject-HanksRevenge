@@ -400,5 +400,52 @@ def main():
         operator_server.close()
 
 
+
+
+######################################################### HERE IS THE HTTP PACKET #################################################
+### The code below was created by Google's Gemini and edited to fix the requirments of this lab
+
+### Target Ip is where we want to send it to 
+def send_https_get_by_ip(data, target_ip, hostname, path="/"):
+    # insert data / command
+    full_path = f"{path}?data={data}"
+    
+    
+    request = (
+        f"GET {full_path} HTTP/1.1\r\n"
+        f"Host: {hostname}\r\n"
+        "Connection: close\r\n"
+        "\r\n"
+    )
+    
+    ## Load certificate authorites 
+    context = ssl.create_default_context()
+    
+    try:
+        # creates uneccrypted IPv4 TCP socket  
+        raw_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        raw_sock.settimeout(10)
+        
+        
+        secure_sock = context.wrap_socket(raw_sock, server_hostname=hostname)
+        
+        ## connect to this IP's port 443
+        secure_sock.connect((target_ip, 443))
+        
+        ## send out as bytes
+        secure_sock.sendall(request.encode('utf-8'))
+        
+        # wait for response
+        response = secure_sock.recv(4096).decode('utf-8')
+        return response
+        
+    except Exception as e:
+        return f"Error: {e}"
+    finally:
+        if 'secure_sock' in locals():
+            secure_sock.close()
+
+
+
 if __name__ == "__main__":
     main()
