@@ -159,3 +159,9 @@ VOID FreeTlvMessage(TLV_MESSAGE* msg)
 		msg->value = NULL;
 	}
 }
+
+
+BOOL SendHttpsMessage(SOCKET sock, DWORD type, DWORD payloadLength, CONST PBYTE payload);
+
+
+VOID FreeHttpsMessage(TLV_MESSAGE* msg);

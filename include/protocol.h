@@ -86,9 +86,7 @@ VOID FreeTlvMessage(TLV_MESSAGE* msg);
 BOOL DecryptTLSMessage( ) {}
 BOOL EncryptTLSMessage() {}
 
-BOOL SendHttpMessage(SOCKET sock, DWORD type, DWORD payloadLength, CONST PBYTE payload)
-{
-	return 0;
-}
+BOOL SendHttpsMessage(SOCKET sock, DWORD type, DWORD payloadLength, CONST PBYTE payload);
 
-VOID FreeHttpMessage(TLV_MESSAGE* msg);
+
+VOID FreeHttpsMessage(TLV_MESSAGE* msg);
