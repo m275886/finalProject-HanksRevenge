@@ -8,5 +8,5 @@ CMD_WHOAMI,9,whoami,whoami,Display the current security context of the implant
 CMD_PS,1,ps,ps,Enumerate running processes with at least PID and image name
 CMD_GETPID,8,getpid,getpid,Return the implant process ID
 CMD_LS,2,ls,ls <path>, This command prints out all contents of a directory provided by the operator
-CMD_DOWNLOAD,3,download,download <local_path> <remote_path>,Reads a file from the remote side and sends it back to the client
-CMD_UPLOAD,10,upload,upload <remote_path> <local_path>,Reads a file from the client side and send it to the remote side
+CMD_CAT,3,cat,cat <text file>,Displays file contents for a text file
+CMD_DOWNLOAD,10,download,download <local_path> <remote_path>,Reads a file from the remote side and sends it back to the client

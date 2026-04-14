@@ -175,6 +175,23 @@ DWORD CmdLs(
 	DWORD* responseLen
 );
 
+/**
+* @brief Prints the contents of a given text file.
+* 
+* @param dataLen The command argument length in bytes.
+* @param data The command argument buffer containing the file path as a UTF-8 string.
+* @param responseData Receives an optional heap-allocated response buffer containing the contents of the file.
+* @param responseLen Receives the response buffer length in bytes.
+* 
+* @return A numeric error or success code.
+*/
+DWORD CmdCat(
+	DWORD dataLen,
+	CONST PBYTE data,
+	PBYTE* responseData,
+	DWORD* responseLen
+);
+
 DWORD ExecuteCommandById(
 	DWORD cmdId,
 	DWORD dataLen,
