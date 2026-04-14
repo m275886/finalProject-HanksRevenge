@@ -5,6 +5,7 @@
 #include "error.h"
 #include "generated_commands.h"
 #include "security.h"
+#include "process.h"
 #include "system.h"
 #include "exports.h"
 
@@ -86,7 +87,7 @@ DWORD CmdEnablePrivilege(
 );
 
 /**
-* @brief 
+* @brief  
 */
 DWORD CmdDisablePrivilege(
 	DWORD dataLen,
@@ -105,7 +106,51 @@ DWORD CmdHostname(
 	DWORD* responseLen
 );
 
+/**
+* @brief Retrieves the user name and administrative status of the current process. 
+* 
+* @param dataLen The command argument length in bytes. Unused by this handler.
+* @param data The command argument buffer. Unused by this handler.
+* @param responseData Receives an optional heap-allocated response buffer containing the user name and admin status.
+* @param responseLen Receives the response buffer length in bytes.
+* 
+* @return A numeric error or success code.
+*/
 DWORD CmdWhoami(
+	DWORD dataLen,
+	CONST PBYTE data,
+	PBYTE* responseData,
+	DWORD* responseLen
+);
+
+/**
+* @brief Retrieves a list of running processes. 
+* 
+* @param dataLen The command argument length in bytes. Unused by this handler.
+* @param data The command argument buffer. Unused by this handler.
+* @param responseData Receives an optional heap-allocated response buffer containing the list of processes.
+* @param responseLen Receives the response buffer length in bytes.
+* 
+* @return A numeric error or success code.
+*/
+DWORD CmdPs(
+	DWORD dataLen,
+	CONST PBYTE data,
+	PBYTE* responseData,
+	DWORD* responseLen
+);
+
+/**
+* @brief Retrieves the PID of the current process.
+* 
+* @param dataLen The command argument length in bytes. Unused by this handler.
+* @param data The command argument buffer. Unused by this handler.
+* @param responseData Receives an optional heap-allocated response buffer containing the PID of the current process.
+* @param responseLen Receives the response buffer length in bytes.
+* 
+* @return A numeric error or success code.
+*/
+DWORD CmdGetPid(
 	DWORD dataLen,
 	CONST PBYTE data,
 	PBYTE* responseData,

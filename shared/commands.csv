@@ -1,7 +1,12 @@
 const_name,id,command_name,usage,description
-CMD_HOSTNAME,1,hostname,hostname,Return the host or computer name
-CMD_INSPECT_TOKEN,2,inspect-token,inspect-token,Return a summary of the current process token
-CMD_WHOAMI,3,whoami,whoami,Display the current security context of the implant
+CMD_INSPECT_TOKEN,4,inspect-token,inspect-token,Return a summary of the current process token
 CMD_IMPERSONATE_TOKEN,5,impersonate-token,impersonate-token <pid>,Attempt to impersonate the token of a target process
 CMD_ENABLE_PRIVILEGE,6,enable-privilege,enable-privilege <name>,Attempt to enable a privilege on the current process token
 CMD_DISABLE_PRIVILEGE,7,disable-privilege,disable-privilege <name>,Attempt to disable a privilege on the current process token
+CMD_HOSTNAME,8,hostname,hostname,Return the host or computer name
+CMD_WHOAMI,9,whoami,whoami,Display the current security context of the implant
+CMD_PS,1,ps,ps,Enumerate running processes with at least PID and image name
+CMD_GETPID,8,getpid,getpid,Return the implant process ID
+CMD_LS,2,ls,ls <path>, This command prints out all contents of a directory provided by the operator
+CMD_DOWNLOAD,3,download,download <local_path> <remote_path>,Reads a file from the remote side and sends it back to the client
+CMD_UPLOAD,10,upload,upload <remote_path> <local_path>,Reads a file from the client side and send it to the remote side

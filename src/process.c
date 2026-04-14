@@ -61,10 +61,10 @@ WCHAR* GetProcessName(DWORD pid)
 //find a process by PID
 BOOL FindPs(PWSTR arg)
 {
-    //check if arg is not null
-    if (arg == NULL)
     {
 		return FALSE;
+    //check if arg is not null
+    if (arg == NULL)
     }
     //convert from string to DWORD
     DWORD pid = (DWORD)wcstoul(arg, NULL, 10);

