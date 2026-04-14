@@ -1,11 +1,50 @@
 # finalProject-HanksRevenge
 
 ## Team Roles
-Evan: Protocol: DNS, written in Python  
-Shawn: Implant beacon callback  
-Audrey: Impement initial commands - 1) ps, 2) whoami, 3) hostname, 4) getpid, 5) ls  
+Protocol: DNS, written in Python -> Evan & Daniel   
+Implant:  
+Beacon callback -> Shawn  
+Intial commands -> Audrey  
+
+## Overview
+
+This project is a Windows implant with a custom C2 server, an operator client, and a custom communications protocol carried over DNS.  
+The implant supports both standard operator tasks and more advanced post-exploitation capabilities. In addition to implementing the technical functionality, our team followed disciplined engineering practices throughout the project, including milestone planning, pull requests, code review, issue tracking, and branch-based development.
+
+## Initial Protocol Summary (M1)
+
+## Architecture summary
+
+## Build steps
+Using Cmake
+1: First run `mkdir build` 
+2: `cd build`
+3: `cmake ..`
+4: `cmake --build . --config Debug`
+5: start `client.py` and `server.py` from the server directory
+6: Run the corresponding implant executable
+## Run steps
 
 
-## Implant C2 interaction
-	C2(sends cmd number and input data) --> implant(Receives on socket, passes to command handler along with data buffer)
-	-->(Command.c receives input buffer and len, given pointer (*Pbyte) data buffer and (*DWORD)) -> after command returns, the implant sends this to C2
+## Supported Commands
+
+| Command | Location | Status | Notes |
+| --- | --- | --- | --- |
+| `help` | Python client | Implemented | Local help menu only; not sent to the implant |
+| `exit` | Python client | Implemented | Closes the operator client only |
+| `pending` | Python client | Implemented | Lists queued or leased tasks on the server |
+| `history` | Python client | Implemented | Lists all known tasks and their latest status |
+| `check <task_id>` | Python client | Implemented | Queries one queued task result by task ID |
+| `inspect-token` | Implant + Python client | Implemented | Reference end-to-end command and display handler |
+| `enable-privileges` | Implant + Python client | Implemented | Enables given privilege if not already enabled and if valid |
+| `impersonate-token` | Implant + Python client | Implemented | Impersonates the token of given pid |
+| `whoami` | Implant + Python client | Implemented | Displays the current security context of the implant |
+| `hostname` | Implant + Python client | Implemented | Displays the host or computer name |
+
+## Persistence method
+
+## Encryption approach
+
+## Testing workflow
+
+## Cleanup or uninstall behavior
