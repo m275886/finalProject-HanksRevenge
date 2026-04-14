@@ -51,7 +51,7 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
-
+'Hanks revenge/'
 # debug information files
 *.dwo
 # python pycache
