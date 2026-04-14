@@ -1,0 +1,21 @@
+name,code,message
+ERROR_UNKNOWN_COMMAND,0x40000001,Unknown command
+ERROR_COMMAND_NOT_IMPLEMENTED,0x40000002,Command not implemented
+ERROR_INVALID_REQUEST,0x40000003,Invalid request
+ERROR_THREAD_CREATE_FAILED,0x40000004,Failed to create worker thread
+ERROR_NETWORK_INIT_FAILED,0x40000005,Network initialization failed
+ERROR_SEND_FAILED,0x40000006,Failed to send response
+ERROR_RECV_FAILED,0x40000007,Failed to receive request
+ERROR_MEMORY_ALLOCATION_FAILED,0x40000008,Memory allocation failed
+ERROR_OPEN_PROCESS_TOKEN_FAILED,0x40000009,Failed to open process token
+ERROR_OPEN_THREAD_TOKEN_FAILED,0x4000000A,Failed to open thread token
+ERROR_QUERY_TOKEN_USER_FAILED,0x4000000B,Failed to query token user information
+ERROR_QUERY_TOKEN_ELEVATION_FAILED,0x4000000C,Failed to query token elevation information
+ERROR_LOOKUP_ACCOUNT_SID_FAILED,0x4000000D,Failed to resolve SID to account name
+ERROR_CONVERT_SID_TO_STRING_FAILED,0x4000000E,Failed to convert SID to string
+ERROR_FORMAT_ACCOUNT_NAME_FAILED,0x4000000F,Failed to format account name
+ERROR_INVALID_PID, 0x40000010, Invalid PID provided
+ERROR_MEMORY_COPY_FAILED, 0x40000011, Error copying memory for summary
+ERROR_GETTING_TOKEN_INFO, 0x40000012, Error retriveing token information
+ERROR_PID_PERMISSION, 0x40000013, Permission denied for PID
+ERROR_INVALID_PRIVILEGE, 0X40000014, Invalid privilege provided

