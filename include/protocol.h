@@ -82,3 +82,13 @@ BOOL RecvMessage(SOCKET sock, TLV_MESSAGE* msg);
  * @return VOID
  */
 VOID FreeTlvMessage(TLV_MESSAGE* msg);
+
+BOOL DecryptTLSMessage( ) {}
+BOOL EncryptTLSMessage() {}
+
+BOOL SendHttpMessage(SOCKET sock, DWORD type, DWORD payloadLength, CONST PBYTE payload)
+{
+	return 0;
+}
+
+VOID FreeHttpMessage(TLV_MESSAGE* msg);

@@ -5,6 +5,7 @@
 
 #include "debug.h"
 
+///Change such that build script can change to arbitrary ip and port 
 #define DEFAULT_C2_HOST L"127.0.0.1"
 #define DEFAULT_C2_PORT L"9001"
 
