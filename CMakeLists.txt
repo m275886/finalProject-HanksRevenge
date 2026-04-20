@@ -17,6 +17,7 @@ set(PROJECT_HEADERS
 	include/protocol.h
 	include/system.h
 	include/exports.h
+	include/tls.h
 )
 
 set(PROJECT_SOURCES
@@ -28,6 +29,7 @@ set(PROJECT_SOURCES
 	src/system.c
 	src/debug.c
 	src/exports.c
+	src/tls.c
 )
 
 
