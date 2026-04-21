@@ -3,7 +3,7 @@
 #include <psapi.h>
 #include <sddl.h>
 #include <strsafe.h>
-
+#include "process.h"
 #include "debug.h"
 #include "error.h"
 
@@ -33,17 +33,6 @@ typedef struct _TOKEN_SUMMARY_HEADER
 	DWORD userSidLength;
 } TOKEN_SUMMARY_HEADER;
 
-/**
-* @brief  Structure to hold information about running processes.
- *
- * This structure contains an array of process IDs and the total number of processes.
- *
-*/
-typedef struct _ProcessInfo_t
-{
-	DWORD* processArray;
-	DWORD numProcesses;
-} ProcessInfo_t;
 
 /**
  * @brief Allocates and packs a binary response buffer for the enable-privilege command.

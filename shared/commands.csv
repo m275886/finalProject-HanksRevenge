@@ -1,7 +1,28 @@
 const_name,id,command_name,usage,description
-CMD_HOSTNAME,1,hostname,hostname,Return the host or computer name
-CMD_INSPECT_TOKEN,2,inspect-token,inspect-token,Return a summary of the current process token
-CMD_WHOAMI,3,whoami,whoami,Display the current security context of the implant
+CMD_INSPECT_TOKEN,4,inspect-token,inspect-token,Return a summary of the current process token
 CMD_IMPERSONATE_TOKEN,5,impersonate-token,impersonate-token <pid>,Attempt to impersonate the token of a target process
 CMD_ENABLE_PRIVILEGE,6,enable-privilege,enable-privilege <name>,Attempt to enable a privilege on the current process token
 CMD_DISABLE_PRIVILEGE,7,disable-privilege,disable-privilege <name>,Attempt to disable a privilege on the current process token
+CMD_HOSTNAME,8,hostname,hostname,Return the host or computer name
+CMD_WHOAMI,9,whoami,whoami,Display the current security context of the implant
+CMD_LS,10,ls,ls <path>,List files and directories in a specified path
+CMD_CAT,11,cat,cat <file>,Read and display the contents of a file
+CMD_MKDIR,12,mkdir,mkdir <path>,Create a new directory
+CMD_RM,13,rm,rm <path>,Remove a file or directory
+CMD_UPLOAD,14,upload,upload <src> <dst>,Upload a file from the operator to the implant
+CMD_DOWNLOAD,15,download,download <src> <dst>,Download a file from the implant to the operator
+CMD_PS,16,ps,ps,List running processes
+CMD_GETPID,17,getpid,getpid,Return the process ID of the implant
+CMD_EXEC,18,exec,exec <command>,Execute a system command
+CMD_SHELLCODEEXEC,19,shellcode-exec,shellcode-exec <path>,Execute shellcode in memory from a file
+CMD_MEMREAD,20,mem-read,mem-read <addr> <size>,Read memory from a specified address
+CMD_MODULELIST,21,module-list,module-list,List loaded modules in the current process
+CMD_HANDLELIST,22,handle-list,handle-list,List open handles in the current process
+CMD_ENV,23,env,env,List all environment variables
+CMD_GETENV,24,get-env,get-env <name>,Get the value of a specific environment variable
+CMD_SETENV,25,set-env,set-env <name> <value>,Set or modify an environment variable
+CMD_SLEEP,26,sleep,sleep <seconds>,Set the implant sleep interval
+CMD_KILL,27,kill,kill,Terminate the implant process
+CMD_PERSIST,28,persist,persist <method>,Establish persistence on the target system
+CMD_UNPERSIST,29,unpersist,unpersist <method>,Remove persistence from the target system
+CMD_MIGRATE,30,migrate,migrate <pid>,Migrate the implant to a different process

