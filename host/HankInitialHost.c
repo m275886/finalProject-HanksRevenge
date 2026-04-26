@@ -23,7 +23,9 @@ int wmain(int argc, wchar_t* argv[])
 	PCWSTR dllPath = L"Hanks_Revenge.dll";
 	PCWSTR c2Host = L"127.0.0.1";
 	PCWSTR c2Port = L"9001";
+	PWSTR testAddr = L"TEST MEMORY ADDRESS";
 
+	wprintf(L"\nTest memory address is at %p\n", testAddr);
 	if (argc > 1)
 	{
 		dllPath = argv[1];

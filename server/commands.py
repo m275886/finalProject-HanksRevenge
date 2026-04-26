@@ -38,7 +38,7 @@ COMMAND_SPECS = [
     {'id': CMD_CAT, 'name': 'cat', 'usage': 'cat <file>', 'description': 'Read and display the contents of a file'},
     {'id': CMD_MKDIR, 'name': 'mkdir', 'usage': 'mkdir <path>', 'description': 'Create a new directory'},
     {'id': CMD_RM, 'name': 'rm', 'usage': 'rm <path>', 'description': 'Remove a file or directory'},
-    {'id': CMD_UPLOAD, 'name': 'upload', 'usage': 'upload <src> <dst>', 'description': 'Upload a file from the operator to the implant'},
+    {'id': CMD_UPLOAD, 'name': 'upload', 'usage': 'upload <remote dst> <local src>', 'description': 'Upload a file from the operator to the implant'},
     {'id': CMD_DOWNLOAD, 'name': 'download', 'usage': 'download <src> <dst>', 'description': 'Download a file from the implant to the operator'},
     {'id': CMD_PS, 'name': 'ps', 'usage': 'ps', 'description': 'List running processes'},
     {'id': CMD_GETPID, 'name': 'getpid', 'usage': 'getpid', 'description': 'Return the process ID of the implant'},
