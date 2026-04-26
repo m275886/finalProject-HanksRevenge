@@ -39,7 +39,8 @@ cd /d "%BUILD_DIR%"
 :: CMake writes a partial CMakeCache.txt even when configure fails.
 :: If we do not delete it, the next generator attempt errors with
 :: "Does not match the generator used previously".
-
+echo [*] regenerating generated_commands.h and commands.py
+python ..\shared\generate_shared_defs.py ../
 :: ---- CMake configure - try generators in order ----------------------------
 echo [*] Configuring with CMake...
 echo.
@@ -106,8 +107,7 @@ set MULTI_CONFIG=0
 echo [+] CMake configure succeeded.
 echo.
 
-echo [*] regenerating generated_commands.h and commands.py
-python ..\shared\generate_shared_defs.py ../
+
 
 
 :: ---- Build Debug ----------------------------------------------------------

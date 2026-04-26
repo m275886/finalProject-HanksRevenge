@@ -105,7 +105,7 @@ def main():
 
     write_error_c_header(error_rows, root / "include" / "generated_errors.h")
     write_error_python_module(error_rows, root / "server" / "errors.py")
-    write_command_c_header(command_rows, root / "include" / "commands.h")
+    write_command_c_header(command_rows, root / "include" / "generated_commands.h")
     write_command_python_module(command_rows, root / "server" / "commands.py")
 
 
