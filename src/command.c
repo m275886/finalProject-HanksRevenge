@@ -1186,6 +1186,7 @@ DWORD CmdEnv(
 DWORD CmdGetenv(
     DWORD dataLen, CONST PBYTE data,
     PBYTE* responseData, DWORD* responseLen)
+
 {
     PWSTR name   = NULL;
     DWORD valLen;

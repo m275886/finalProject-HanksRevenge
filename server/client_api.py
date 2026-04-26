@@ -56,8 +56,8 @@ def encode_arg_bytes(cmd_name: str, arg: str) -> bytes:
       shellcodeexec <pid> <shellcode_file>   → DWORD pid + raw shellcode bytes
       memread <pid> <addr_hex> <size>        → DWORD pid + UINT64 addr + DWORD size
       modulelist / handlelist / migrate <pid>→ DWORD pid (LE)
-      getenv <name>                          → UTF-8 name
-      setenv <NAME=VALUE>                    → UTF-8 "NAME=VALUE"
+      get-env <name>                          → UTF-8 name
+      set-env <NAME=VALUE>                    → UTF-8 "NAME=VALUE"
       sleep <ms>                             → DWORD milliseconds (LE)
     """
     # PID-only commands
@@ -69,11 +69,11 @@ def encode_arg_bytes(cmd_name: str, arg: str) -> bytes:
         return arg.encode("utf-8")
 
     # Simple path (UTF-8)
-    if cmd_name in {"ls", "cat", "mkdir", "rm", "download", "getenv"}:
+    if cmd_name in {"ls", "cat", "mkdir", "rm", "download", "get-env"}:
         return arg.encode("utf-8")
 
     # Environment variable set: "NAME=VALUE"
-    if cmd_name == "setenv":
+    if cmd_name == "set-env":
         return arg.encode("utf-8")
 
     # Sleep: milliseconds as DWORD
