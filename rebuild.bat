@@ -57,6 +57,13 @@ if %ERRORLEVEL% equ 0 goto :cmake_ok
 if exist CMakeCache.txt del /f /q CMakeCache.txt
 if exist CMakeFiles rmdir /s /q CMakeFiles
 
+
+echo [*] Using default CMAKE compiler 
+cmake .. -A x64 >nul 2>&1
+
+if %ERRORLEVEL% equ 0 goto :cmake_ok
+
+
 :: --- Ninja Multi-Config (ships inside every VS install) --------------------
 :: In a Developer PowerShell/Command Prompt, ninja.exe is already on PATH.
 :: We also search the VS install tree in case the shell was not pre-loaded.
@@ -98,6 +105,10 @@ set MULTI_CONFIG=0
 :cmake_ok
 echo [+] CMake configure succeeded.
 echo.
+
+echo [*] regenerating generated_commands.h and commands.py
+python ..\shared\generate_shared_defs.py ../
+
 
 :: ---- Build Debug ----------------------------------------------------------
 echo [*] Building Debug...
