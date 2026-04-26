@@ -1412,7 +1412,7 @@ DWORD CmdMigrate(
 
     remoteBuf = VirtualAllocEx(hProcess, NULL, dllPathBytes,
                                MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-    if (!remoteBuf)
+    if (remoteBuf == NULL)
     {
         status = GetLastError();
         CloseHandle(hProcess);
@@ -1426,7 +1426,7 @@ DWORD CmdMigrate(
         CloseHandle(hProcess);
         return status;
     }
-
+    //change ddll
     pLoadLib = GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "LoadLibraryW");
     if (!pLoadLib)
     {

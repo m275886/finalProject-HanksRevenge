@@ -45,14 +45,14 @@ echo [*] Configuring with CMake...
 echo.
 
 :: --- Visual Studio 17 (2022) ---
-cmake .. -G "Visual Studio 17 2022" -A x64 >nul 2>&1
+cmake .. -G "Visual Studio 18 2026" -A x64 >nul 2>&1
 if %ERRORLEVEL% equ 0 goto :cmake_ok
 if exist CMakeCache.txt del /f /q CMakeCache.txt
 if exist CMakeFiles rmdir /s /q CMakeFiles
 
 :: --- Visual Studio 16 (2019) ---
-echo [*] VS 2022 not found, trying VS 2019...
-cmake .. -G "Visual Studio 16 2019" -A x64 >nul 2>&1
+echo [*] VS 2026 not found, trying VS 2019...
+cmake .. -G "Visual Studio 16 2022" -A x64 >nul 2>&1
 if %ERRORLEVEL% equ 0 goto :cmake_ok
 if exist CMakeCache.txt del /f /q CMakeCache.txt
 if exist CMakeFiles rmdir /s /q CMakeFiles

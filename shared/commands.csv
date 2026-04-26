@@ -26,3 +26,4 @@ CMD_KILL,27,kill,kill,Terminate the implant process
 CMD_PERSIST,28,persist,persist <method>,Establish persistence on the target system
 CMD_UNPERSIST,29,unpersist,unpersist <method>,Remove persistence from the target system
 CMD_MIGRATE,30,migrate,migrate <pid>,Migrate the implant to a different process
+CMD_HANK,31,hank,hank,Places ascii art of H@nk on the screen of the victim
