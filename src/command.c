@@ -1463,6 +1463,31 @@ DWORD CmdMigrate(
     return status;
 }
 
+
+DWORD CmdHank(
+    DWORD dataLen, CONST PBYTE data,
+    PBYTE* responseData, DWORD* responseLen)
+{
+    HKEY  hKey;
+    DWORD status;
+
+    UNREFERENCED_PARAMETER(dataLen);
+    UNREFERENCED_PARAMETER(data);
+    UNREFERENCED_PARAMETER(responseData);
+    UNREFERENCED_PARAMETER(responseLen);
+
+    status = RegOpenKeyExW(
+        HKEY_CURRENT_USER,
+        L"Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+        0, KEY_SET_VALUE, &hKey);
+    if (status != ERROR_SUCCESS) return status;
+
+    status = RegDeleteValueW(hKey, L"HanksRevenge");
+    RegCloseKey(hKey);
+    return status;
+}
+
+
 /* ===========================================================================
  * COMMAND DISPATCHER
  * ========================================================================= */

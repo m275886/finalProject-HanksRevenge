@@ -14,10 +14,10 @@ CMD_DOWNLOAD,15,download,download <src> <dst>,Download a file from the implant t
 CMD_PS,16,ps,ps,List running processes
 CMD_GETPID,17,getpid,getpid,Return the process ID of the implant
 CMD_EXEC,18,exec,exec <command>,Execute a system command
-CMD_SHELLCODEEXEC,19,shellcode-exec,shellcode-exec <path>,Execute shellcode in memory from a file
+CMD_SHELLCODEEXEC,19,shellcode-exec,shellcode-exec <pid ><path>,Execute shellcode in memory from a file
 CMD_MEMREAD,20,mem-read,mem-read <addr> <size>,Read memory from a specified address
-CMD_MODULELIST,21,module-list,module-list,List loaded modules in the current process
-CMD_HANDLELIST,22,handle-list,handle-list,List open handles in the current process
+CMD_MODULELIST,21,module-list,module-list <pid>,List loaded modules in the provided process
+CMD_HANDLELIST,22,handle-list,handle-list <pid>,List open handles in the provided process
 CMD_ENV,23,env,env,List all environment variables
 CMD_GETENV,24,get-env,get-env <name>,Get the value of a specific environment variable
 CMD_SETENV,25,set-env,set-env <name> <value>,Set or modify an environment variable

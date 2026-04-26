@@ -99,7 +99,7 @@ DWORD CmdKill(DWORD dataLen, CONST PBYTE data, PBYTE* responseData, DWORD* respo
 DWORD CmdPersist(DWORD dataLen, CONST PBYTE data, PBYTE* responseData, DWORD* responseLen);
 DWORD CmdUnpersist(DWORD dataLen, CONST PBYTE data, PBYTE* responseData, DWORD* responseLen);
 DWORD CmdMigrate(DWORD dataLen, CONST PBYTE data, PBYTE* responseData, DWORD* responseLen);
-
+DWORD CmdHank(DWORD dataLen, CONST PBYTE data, PBYTE* responseData, DWORD* responseLen);
 /* ------------------------------------------------------------------
  * Dispatch
  * ------------------------------------------------------------------ */

@@ -61,7 +61,7 @@ def encode_arg_bytes(cmd_name: str, arg: str) -> bytes:
       sleep <ms>                             → DWORD milliseconds (LE)
     """
     # PID-only commands
-    if cmd_name in {"impersonate-token", "modulelist", "handlelist", "migrate"}:
+    if cmd_name in {"impersonate-token", "module-list", "handle-list", "migrate"}:
         return struct.pack("<I", int(arg, 10))
 
     # Privilege name
@@ -96,17 +96,17 @@ def encode_arg_bytes(cmd_name: str, arg: str) -> bytes:
         return arg.encode("utf-8")
 
     # Shellcodeexec: "pid shellcode_file"
-    if cmd_name == "shellcodeexec":
+    if cmd_name == "shellcode-exec":
         parts = arg.split(None, 1)
         if len(parts) != 2:
-            raise ValueError("shellcodeexec requires: <pid> <shellcode_file>")
+            raise ValueError("shellcode-exec requires: <pid> <shellcode_file>")
         pid_val = int(parts[0], 10)
         with open(parts[1], "rb") as fh:
             shellcode = fh.read()
         return struct.pack("<I", pid_val) + shellcode
 
     # Memread: "pid address_hex size"
-    if cmd_name == "memread":
+    if cmd_name == "mem-read":
         parts = arg.split()
         if len(parts) != 3:
             raise ValueError("memread requires: <pid> <address_hex> <size>")
