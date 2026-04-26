@@ -6,7 +6,7 @@
 |------|-------|
 | Protocol (DNS/HTTPS) | Evan & Daniel |
 | Implant beacon callback | Shawn |
-| Initial commands | Audrey |
+| Commands | Audrey |
 
 ---
 
