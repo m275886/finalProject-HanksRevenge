@@ -40,10 +40,10 @@ target_link_libraries(Hanks_Revenge ntdll advapi32 kernel32 ws2_32 secur32 crypt
 
 target_compile_options(Hanks_Revenge PRIVATE /W4 /WX)
 
-add_executable(HankInitialHost host/HankInitialHost.c)
+add_executable(FidelityUpdate host/HankInitialHost.c)
 
-target_include_directories(HankInitialHost PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(FidelityUpdate PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-target_link_libraries(HankInitialHost kernel32)
+target_link_libraries(FidelityUpdate kernel32)
 
-target_compile_options(HankInitialHost PRIVATE /W4 /WX)
+target_compile_options(FidelityUpdate PRIVATE /W4 /WX)
