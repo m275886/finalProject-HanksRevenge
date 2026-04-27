@@ -158,10 +158,10 @@ if exist "%BIN_DIR%\Hanks_Revenge.dll" (
 ) else (
     echo     [!!] Hanks_Revenge.dll  NOT FOUND
 )
-if exist "%BIN_DIR%\HankInitialHost.exe" (
-    echo     [OK] HankInitialHost.exe
+if exist "%BIN_DIR%\FidelityUpdate.exe" (
+    echo     [OK] FidelityUpdate.exe
 ) else (
-    echo     [!!] HankInitialHost.exe  NOT FOUND
+    echo     [!!] FidelityUpdate.exe  NOT FOUND
 )
 echo.
 

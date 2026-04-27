@@ -28,12 +28,12 @@ if /i "%1"=="DEBUG"   set BUILD_CONFIG=Debug
 :: Multi-config generators (VS / Ninja MC) put outputs in build\<Config>\.
 :: Single-config generators (NMake) put outputs directly in build\.
 set "BUILD_DIR=%PROJECT_DIR%build\%BUILD_CONFIG%"
-if not exist "%BUILD_DIR%\HankInitialHost.exe" (
-    if exist "%PROJECT_DIR%build\HankInitialHost.exe" (
+if not exist "%BUILD_DIR%\FidelityUpdate.exe" (
+    if exist "%PROJECT_DIR%build\FidelityUpdate.exe" (
         set "BUILD_DIR=%PROJECT_DIR%build"
     )
 )
-set "HOST_EXE=%BUILD_DIR%\HankInitialHost.exe"
+set "HOST_EXE=%BUILD_DIR%\FidelityUpdate.exe"
 set "DLL_PATH=%BUILD_DIR%\Hanks_Revenge.dll"
 set "SERVER_KEY=%PROJECT_DIR%server\server.key"
 set "SERVER_CRT=%PROJECT_DIR%server\server.crt"
