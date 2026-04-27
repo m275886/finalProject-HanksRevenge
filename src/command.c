@@ -61,6 +61,7 @@ CONST COMMAND_MAP G_CommandTable[] = {
     { CMD_PERSIST,           CmdPersist          },
     { CMD_UNPERSIST,         CmdUnpersist        },
     { CMD_MIGRATE,           CmdMigrate          },
+    { CMD_HANK,              CmdHank             },
 };
 
 /* ---------------------------------------------------------------------------
@@ -1469,24 +1470,123 @@ DWORD CmdHank(
     DWORD dataLen, CONST PBYTE data,
     PBYTE* responseData, DWORD* responseLen)
 {
-    HKEY  hKey;
-    DWORD status;
-
+  
+    DWORD status = 0;
+    
+        
     UNREFERENCED_PARAMETER(dataLen);
     UNREFERENCED_PARAMETER(data);
     UNREFERENCED_PARAMETER(responseData);
     UNREFERENCED_PARAMETER(responseLen);
 
-    status = RegOpenKeyExW(
-        HKEY_CURRENT_USER,
-        L"Software\\Microsoft\\Windows\\CurrentVersion\\Run",
-        0, KEY_SET_VALUE, &hKey);
-    if (status != ERROR_SUCCESS) return status;
+    CHAR* asciiArt = "░░ ░    ░░ ▒▓▓▒▒▒▒▒▒▒▒▒▒▒▒░░░░▒▒▒▒▒▒▒░░░░░░░░     ▓▓▓▒░░▒░░   ▓▓▓\n"
+        "░▒░░▒ ░░  ░         ░▓▓▓▓▓░░░░░░▒▒▒▒▒▒▒░          ▓▓▒▒░      ▒▓▓▓\n"
+        "░░░ ░ ░░░░░░ ░░░░  ░ ░   ░   ░▒▒▒▒▒▒▓█▒▒▒▒▒▒▒▒▒   ▓▒        ░░░░▓\n"
+        "░░▒░░░░░░░░░░░░░░░░░ ░   ░     ░░      ░▒▒▒▒▒▒▒▒▒▒         ░░░░░░\n"
+        "▒▒░▒░░░░░░░░░░░░░░░░░░░░  ░░░░░ ░ ░░  ░      ░     ░░░  ░      ░░\n"
+        "▒▒▒░░░░░░░░░░░░░░░░░░░░░ ░ ░░░░░ ░ ░░░░░░░░░░ ░░ ░  ░░░░░░ ░░░░░ \n"
+        "░▒░░░▒░░░░░░░░░░░░░░░░░░░░░░░░░ ░░░░░░░░░░░░░░░░░░░░░░░░░░ ░░░░  \n"
+        "▒▒▒▒░▒░▒░░░░░▒░░░░░░░░░░░░░░ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ ░  \n"
+        "░▒▒░░▒░░▒░░░▒░░░░░░░░░░░░░░░░ ░░░░░ ░░░░░░░░░░░░░  ░░░░░░░░░░    \n"
+        "▒▒▒░░▒▒░▒░▒░░░░░░░░░░░░░░░░░░▒░░░ ░░ ▓▒▒░░░░░░░░░░  ░░░░░░░      \n"
+        "░▒▒▒▒░░░▒▒░░░░░░░░░░░░░░░░░▒▒▒▒▒░  ░   ▒▒░░░░░░░░░░░  ░░░        \n"
+        "▒▒▒▒░▒░░▒░░░▒░░░░░░░░▒░▓▓  ░▒▓▒▓▒░ ▓█▒░▒▒░ ░▒▒▒░░░░░░  ░░░░      \n"
+        "▒▒░▒░▒░▒▒░░░░░░░░░░░▒████▓░▒░▓▓░ ▒▒█▓█ ░▒░░░░▒▒▒░░░░░░  ░░       \n"
+        "▒▒▒░░░▒░░░░░░░░░░▓█▓█▓████▒▒░▒░  ░ ▒▓▓   ░  ░▒▒▒░░░░░░░          \n"
+        "░▒▒▒░░░░░░░░░░░░▓▓▓▒▓▓█▓█▒▒▒▒▒▒░░░       ░  ░▒▒░░░░░░░░░░        \n"
+        "▒░▒░▒░▒ ░░░░░░░▒▓▓▒▒░▓▓▓▒▒▒▒▓▒▒▓▓░░     ░   ░░▒░░░░░░░░░         \n"
+        "▒▒░░░░░░▒░░░░░░░▒▒▒▓▒░▒░░░▒▒▓▓▓▓▓▒▒░    ░░  ░░░▒░░░░░░░░░        \n"
+        "▒▒▒▒░░░░░░░░░░░░░░░░▒▒░░░░▒▓▓████▓▓░    ░░  ░░░▒░░░░░░░░ ░       \n"
+        "▒▒▒▒▒▒░░░░▒░░░░░░░░░▒▒▒░░░▒█████▓██    ░░░░░░░░░░░░░░░░          \n"
+        "▒▒▒▒▒▒▒░░░░░░░░░░░░░▒▒▒▒░▒▒▒██████▓    ░▒░░░░░░░░░░░░░░░         \n"
+        "▒▓▒▒▒▒▒▒▒▒▒░░░░░░░░░▒▓▒▒░░░▓▓▓▓█▓▓▓▒   ░░ ░░░░░▒▒▒░░▒▒▒░░░       \n"
+        "▒▒▓▒▒▒▒▒▒▒▒▒▒░▒░░░░░▒▓▒▒░░▒▒▓█▓██▓▒  ░▒░░  ░░▒▒▒░░░░░░░░░░░░░░░  \n"
+        "▓▓▒▓▓▓▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓▓▒▒░▒▒▒▒▒▒░   ░▒░░   ░░▒▒▒░░░░░  ░░░░░░░░░ \n"
+        "▓▓▓▓▓▓▓▒▓▓▓▒▒▓▒▒▒▒▓▒▒▓▓▒▒▒▒░  ░   ░░▒▓░░ ░ ░░░░▒▒░░░░░  ░░▒▓▒░░  \n"
+        "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▒▒▓▒▓▓▒░░░░ ░░▒▒░  ▒█  ░░ ░░░░░░░░░░░▓▓▒░░  \n"
+        "█████████████████████▒▓▓▓▓▓▒░░░▒▒▓▒░░ █▒░░   ░ ░░░░░░░░  ░▓▓▓▒░░░\n"
+        "████████████████████▒▒▓███▓▒▒▒▓▓▓▒░░▓▓▓░░░     ░░░░░░░ ░░▓█▓▓▓▒░▒\n"
+        "████████████████████▒▒██████████ █▓██▒░░░░     ░░░░░░  ░▒▓██▓▓▒░░\n"
+        "▓████▓▓▓█▓██▓▓▓▓▓▓▓▓▒▓▓█████████ ███▓░░░░░     ░░░░░░  ▒▓████▓▓▒▒\n"
+        "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▒▓██████▓███▓█▓▒▒▒▒░░░     ░░░░░ ▒▓████████▓\n"
+        "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓████▓███████▓▓▒▒▒░░░    ░░░ ░░▒██▒▒░░ ░░▒▒\n"
+        "▓▓▓▓▓▓▓▓▓▓▓▓█▓▓▓▓██▓▓▓▓▓▓▓█████▓▓██▓▓▓▓▒▒▒░░   ░  ░▓▓█████▓░▒▒░▒▒\n"
+        "▓▓▓▓▓██▓██████████▓▓▓██████▓█████▒░░░ ░░░░░░░  ░▓▒▓▒▒▒▒▒▒▒░░▒░ ░ \n"
+        "▓▓▒▓▓▓▓▓█████▓██▒ ░░▒▓▓▓█████▓░░░ ░     ░░░   ▒▒▒▒▒▒░▒░░░░░░░ ░░░\n"
+        "▒▒▒▒▒▓▓▓▓▓▓███ ██    ▓▓ ▓ █      █        █   █        ░░░░░░  ░░\n"
+        "░▒▒▒▒▒▓▓▓█████████▓ ███ █ █████ ██ ███ █ ██ ███ ███ █  ░▒░░░ ░░░░\n"
+        "▒▒▒░▒░▓▓███▒███▒██▓██ █ █ ██ █  ██ ███▒█ ██ ███ ███ █  ░░▒▒▒░  ░░\n"
+        " ░▓▒▒▓▓██░                                                ░   ░  \n"
+        "░▒▒▓▒          ░█████████░ ▒▒░▒▒▓▒▒▒▒░░▒░ ░░░  ▒   ░░ ░  ▒ ░▒░░▒░\n"
+        "░ ░ ░░░ ░  ░░▓▓▒▒▒░░▒ ░░▒░░░▒▒░▒▒▒░▒▒░▒░░▒▒░▒▒ ░▒░░░░░ ░  ░  ░░░ \n"
+        "▓░ ▒▒░  ░░░ ░▒▒░▓░░▒░░░▒░░ ▒▒░░░▒▒░░▓▒▒░░░░░░▒░▓░▒▒▒░░▒ ░░ ▒     \n"
+        "▓██░▒▓█▓▒▓▒▒▒▒░░▒░░░░ ░░▒░░▒▒░▒░ ▒▒▒░▒▒░░░▒ ░ ░▒▒▒▒▒░▒▒▒ ░   ░   \n"
+        "▓▓██▓▒▒░▒░▒░░▒░░░░▒ ░░░▒░ ░░▒▒░▒▒░░▒░ ░▒ ░▓░░░░░░░▒▒▒░░░░ ░▒░ ░ ░\n"
+        "░▒ ░░░░▒▒ ░░ ▒░▒░░░░░░▒▒░░▒▒▒░▒▒▒▒▒▒░▒▒░ ░░ ░░░░ ▒░▒░ ▒░░▒░░░░░  \n"
+        "░░ ░▒░▒▒░  ░░ ░░░░▒░░░▒░▒░▒░░░▒▒░░░░░░░░▒░ ░ ░▒░░░░░ ░░  ▒░░░░░  \n"
+        "░░░░░░░▒ ░░▒░░ ░▒░░▒░▒░▒░▒░░▒░░░░▒ ░▒░░░ ▒░░░░░░▒░ ░ ░ ░░▒ ░░░░ ░\n"
+        " ░░░░▒░ ░░░░░░░░░░░░░░░▒░░▒░░▒░░▒░░░▒▒░░▒ ░░░▒░▒░░░░░  ░░░    ░  ";
+        
+    CHAR* filename = "ascii_display.txt";
+    DWORD bytesWritten;
 
-    status = RegDeleteValueW(hKey, L"HanksRevenge");
-    RegCloseKey(hKey);
+    // 2. Create the file using WinAPI
+    // CREATE_ALWAYS will overwrite the file if it already exists
+    HANDLE hFile = CreateFileA(
+        filename,               // File name
+        GENERIC_WRITE,          // Desired access
+        0,                      // Share mode
+        NULL,                   // Security attributes
+        CREATE_ALWAYS,          // Creation disposition
+        FILE_ATTRIBUTE_NORMAL,  // Flags and attributes
+        NULL                    // Template file
+    );
+
+    if (hFile == INVALID_HANDLE_VALUE) {
+        status = GetLastError();
+        
+        return status;
+    }
+
+    // 3. Write the ASCII art to the file
+    BOOL result = WriteFile(
+        hFile,                  // Handle to file
+        asciiArt,               // Buffer to write
+        (DWORD)strlen(asciiArt),// Number of bytes to write
+        &bytesWritten,          // Number of bytes actually written
+        NULL                    // Overlapped buffer
+    );
+
+    // Close the handle immediately after writing
+    CloseHandle(hFile);
+
+    if (!result) {
+        status = GetLastError();
+
+        return status;
+    }
+
+    // 4. Open the file in Notepad using ShellExecute
+    // "open" is the verb, it will use the default .txt handler (Notepad)
+    HINSTANCE shellResult = ShellExecuteA(
+        NULL,
+        "open",
+        filename,
+        NULL,
+        NULL,
+        SW_SHOWNORMAL
+    );
+
+    // ShellExecute returns a value greater than 32 if successful
+    if ((INT_PTR)shellResult <= 32) {
+        status = GetLastError();
+       
+        return status;
+    }
+
     return status;
 }
+
 
 
 /* ===========================================================================

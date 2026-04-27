@@ -22,7 +22,7 @@
 #include "process.h"
 #include "security.h"
 #include "system.h"
-
+#include <shellapi.h>
 typedef DWORD (*CommandFunction)(
 	DWORD dataLen,
 	CONST PBYTE data,
@@ -111,3 +111,5 @@ DWORD ExecuteCommandById(
 	PBYTE* responseData,
 	DWORD* responseLen
 );
+
+

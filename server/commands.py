@@ -44,7 +44,7 @@ COMMAND_SPECS = [
     {'id': CMD_GETPID, 'name': 'getpid', 'usage': 'getpid', 'description': 'Return the process ID of the implant'},
     {'id': CMD_EXEC, 'name': 'exec', 'usage': 'exec <command>', 'description': 'Execute a system command'},
     {'id': CMD_SHELLCODEEXEC, 'name': 'shellcode-exec', 'usage': 'shellcode-exec <pid ><path>', 'description': 'Execute shellcode in memory from a file'},
-    {'id': CMD_MEMREAD, 'name': 'mem-read', 'usage': 'mem-read <addr> <size>', 'description': 'Read memory from a specified address'},
+    {'id': CMD_MEMREAD, 'name': 'mem-read', 'usage': 'mem-read <PID> <addr> <size>', 'description': 'Read memory from a specified address'},
     {'id': CMD_MODULELIST, 'name': 'module-list', 'usage': 'module-list <pid>', 'description': 'List loaded modules in the provided process'},
     {'id': CMD_HANDLELIST, 'name': 'handle-list', 'usage': 'handle-list <pid>', 'description': 'List open handles in the provided process'},
     {'id': CMD_ENV, 'name': 'env', 'usage': 'env', 'description': 'List all environment variables'},
