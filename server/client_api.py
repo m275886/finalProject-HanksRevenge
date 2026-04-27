@@ -2,6 +2,7 @@ import os
 import socket
 import ssl
 import struct
+import sys
 
 from commands import CMD_NAMES
 from protocol import (
@@ -21,9 +22,15 @@ from protocol import (
     recv_http_response_tlv,
     send_http_request,
 )
+if len(sys.argv) < 3:
+	sys.exit("Error: insufficient arguments given")
 
-C2_HOST = "127.0.0.1"
-C2_PORT = 9002
+try: 
+	C2_HOST = sys.argv[1]#"127.0.0.1"
+	C2_PORT = int(sys.argv[2])#9002
+
+except ValueError:
+	sys.exit("Error: Invalid Port")
 
 TASK_STATE_NAMES = {
     TASK_STATE_QUEUED_CODE:    "queued",
