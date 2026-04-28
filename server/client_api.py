@@ -23,14 +23,14 @@ from protocol import (
     send_http_request,
 )
 if len(sys.argv) < 3:
-	sys.exit("Error: insufficient arguments given")
+	sys.exit("usage: <C2 HOST IP> <C2 PORT>")
 
 try: 
 	C2_HOST = sys.argv[1]#"127.0.0.1"
 	C2_PORT = int(sys.argv[2])#9002
 
 except ValueError:
-	sys.exit("Error: Invalid Port")
+	sys.exit("Error: Invalid C2 Port")
 
 TASK_STATE_NAMES = {
     TASK_STATE_QUEUED_CODE:    "queued",

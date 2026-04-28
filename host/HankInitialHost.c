@@ -62,7 +62,7 @@ int wmain(int argc, wchar_t* argv[])
 		return 1;
 	}
 
-	if (!hankInitialize(c2Host, c2Port))
+	/*/if (!hankInitialize(c2Host, c2Port))
 	{
 		wprintf(L"[!] HankInitialize failed.\n");
 		FreeLibrary(dllModule);
@@ -74,7 +74,7 @@ int wmain(int argc, wchar_t* argv[])
 		wprintf(L"[!] HankStart failed.\n");
 		FreeLibrary(dllModule);
 		return 1;
-	}
+	}*/
 
 	wprintf(L"[*] Polling started. Press Enter to stop the host.\n");
 	(void)getwchar();

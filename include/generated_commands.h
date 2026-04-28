@@ -1,5 +1,8 @@
 #pragma once
 
+#define C2_HOST L"127.0.0.1" 
+#define C2_PORT L"9005" 
+
 /* Auto-generated from shared/commands.csv. Do not edit directly. */
 
 typedef enum _CMD_ID
