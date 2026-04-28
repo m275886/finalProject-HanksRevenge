@@ -5,6 +5,8 @@ import ssl
 import struct
 import threading
 import time
+import sys
+
 
 from protocol import (
     DEFAULT_AGENT_ID,
@@ -35,9 +37,7 @@ from protocol import (
 # Configuration
 # ---------------------------------------------------------------------------
 
-IMPLANT_PORT  = 9001
-OPERATOR_PORT = 9002
-LISTEN_HOST   = "0.0.0.0"
+
 
 TASK_LEASE_TIMEOUT_SECONDS = 30
 
@@ -387,6 +387,20 @@ def _build_ssl_context():
 
 
 def main():
+
+    if len(sys.argv) < 3:
+        print("python server.py <Implant Port callback port> <Operator Port callback port>")
+        return 0
+     
+
+    try:
+        IMPLANT_PORT  = int(sys.argv[1])#9001
+        OPERATOR_PORT = int(sys.argv[2])#9002
+        LISTEN_HOST   = "0.0.0.0"
+    except ValueError: 
+        print("Please use valid port numbers")
+
+
     ssl_ctx = _build_ssl_context()
 
     # --- Implant listener (TLS) ---

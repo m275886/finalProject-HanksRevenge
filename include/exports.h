@@ -36,7 +36,7 @@
   *
   * @return TRUE on success, or FALSE if the implant has already been terminated.
   */
-Hank_API BOOL HankInitialize(PCWSTR host, PCWSTR port);
+Hank_API BOOL HankInitialize();//PCWSTR host, PCWSTR port
 
 /**
  * @brief Starts the polling loop thread for the implant runtime.

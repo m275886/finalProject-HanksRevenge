@@ -12,7 +12,7 @@ from client_display import display_help, display_result
 
 # Commands whose argument must be kept intact (not split on first space)
 # — encode_arg_bytes handles the internal splitting for these.
-_FULL_ARG_COMMANDS = {"upload", "shellcodeexec", "memread", "exec"}
+_FULL_ARG_COMMANDS = {"upload", "shellcode-exec", "memread", "exec"}
 
 
 def main():

