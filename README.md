@@ -69,11 +69,7 @@ finalProject-HanksRevenge/
 │   ├── commands.csv        # Command definitions (shared C ↔ Python)
 │   └── errors.csv          # Error code definitions
 │   └── generate_shared_defs.py #Generate shared files between python server and implant
-└── .vscode/
-    ├── tasks.json          # VS Code build / launch tasks
-    ├── launch.json         # Debugger configurations
-    ├── c_cpp_properties.json  # IntelliSense settings
-    └── settings.json       # Editor settings
+
 ```
 
 ---
